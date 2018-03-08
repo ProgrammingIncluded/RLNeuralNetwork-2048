@@ -6,7 +6,8 @@
 ############################################
 
 import TFE as tfet
-import numpy as np
+import mct_config as mctconfig
+from MCT import *
 import time
 import random as rnd
 import sys
@@ -14,8 +15,8 @@ import random
 
 
 def main():
-    tfet.BOARD_WIDTH = 12
-    tfe = tfet.TFE()
+    board_width = 4
+    tfe = tfet.TFE(board_width)
     # generate a new
     tfe.putNew()
     tfe.putNew()
@@ -24,14 +25,15 @@ def main():
     print(tfe.grid)
     print("")
 
-    np.set_printoptions(threshold=np.nan)
-
+    mct = MCT(board_width)
     while (not tfe.isWin()) and (not tfe.isLose()):
-        act = tfet.MOV_OPT[random.randint(0, 3)]
 
         start = time.clock() 
 
         print("*********************")
+
+        act = mct.run(tfe, MONTE_CARLO_RUN, True)
+
 
         print("AI SELECT ACTION: " + str(act))
         print("*********************")
