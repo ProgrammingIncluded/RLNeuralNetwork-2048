@@ -5,7 +5,8 @@
 # Website: ProgrammingIncluded.com
 ############################################
 
-from TFE import *
+import TFE as tfet
+import numpy as np
 import time
 import random as rnd
 import sys
@@ -13,7 +14,8 @@ import random
 
 
 def main():
-    tfe = TFE()
+    tfet.BOARD_WIDTH = 12
+    tfe = tfet.TFE()
     # generate a new
     tfe.putNew()
     tfe.putNew()
@@ -22,8 +24,10 @@ def main():
     print(tfe.grid)
     print("")
 
+    np.set_printoptions(threshold=np.nan)
+
     while (not tfe.isWin()) and (not tfe.isLose()):
-        act = MOV_OPT[random.randint(0, 3)]
+        act = tfet.MOV_OPT[random.randint(0, 3)]
 
         start = time.clock() 
 

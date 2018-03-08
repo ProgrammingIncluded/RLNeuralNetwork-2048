@@ -12,15 +12,18 @@ import random as rnd
 # Probability of 4 appearing
 FOUR_PROB = 10
 MAX_VALUE = 2048
+BOARD_WIDTH = 4
 
 # cannot be changed for now
 MOV_OPT = ["d", "u", "l", "r"]
 
 # 2048 Class
 class TFE:
-    grid = np.zeros((4,4), np.int64)
+    def __init__(self):
+        self.grid = np.zeros((BOARD_WIDTH, BOARD_WIDTH), np.int64)
 
     def setGrid(self, grid):
+        print(BOARD_WIDTH)
         self.grid = grid
 
     # Attempt to put a new number
@@ -43,11 +46,11 @@ class TFE:
         # check boundary case
         if x <= 0 and dir == "l":
             return
-        elif x >= 3 and dir == "r":
+        elif x >= (BOARD_WIDTH-1) and dir == "r":
             return
         elif y <= 0 and dir == "u":
             return
-        elif y >= 3 and dir == "d":
+        elif y >= (BOARD_WIDTH-1) and dir == "d":
             return
 
         if dir == "l":
@@ -57,11 +60,11 @@ class TFE:
         elif dir == "r":
             xval = 1
             yval = 0
-            bound = lambda v, u: v < 4
+            bound = lambda v, u: v < BOARD_WIDTH
         elif dir == "d":
             xval = 0
             yval = 1
-            bound = lambda v, u: u < 4
+            bound = lambda v, u: u < BOARD_WIDTH
         else:
             xval = 0
             yval = -1
@@ -89,26 +92,26 @@ class TFE:
     def moveGrid(self, dir):
         grid = self.grid
         if dir == "l":
-            evalO = lambda v, u: u < 4
-            evalI = lambda v, u: v < 4
+            evalO = lambda v, u: u < BOARD_WIDTH
+            evalI = lambda v, u: v < BOARD_WIDTH
             x, y = 0, 0
             incI = lambda v, u: (v+1, u)
             incO = lambda v, u: (v, u + 1)
         elif dir == "r":
             evalO = lambda v, u: u >= 0
             evalI = lambda v, u: v >= 0
-            x, y = 3, 3
+            x, y = (BOARD_WIDTH - 1), (BOARD_WIDTH - 1)
             incI = lambda v, u: (v-1, u)
             incO = lambda v, u: (v, u - 1)
         elif dir == "d":
             evalO = lambda v, u: v >= 0
             evalI = lambda v, u: u >= 0
-            x, y = 3, 3
+            x, y = (BOARD_WIDTH - 1), (BOARD_WIDTH - 1 )
             incI = lambda v, u: (v, u-1)
             incO = lambda v, u: (v-1, u)
         else:
-            evalO = lambda v, u: v < 4
-            evalI = lambda v, u: u < 4
+            evalO = lambda v, u: v < BOARD_WIDTH
+            evalI = lambda v, u: u < BOARD_WIDTH
             x, y = 0, 0
             incI = lambda v, u: (v, u+1)
             incO = lambda v, u: (v+1, u)
@@ -123,7 +126,7 @@ class TFE:
             dx, dy = incO(dx, dy)
                 
     def restart(self):
-        grid = np.zeros((4,4))
+        grid = np.zeros((BOARD_WIDTH,BOARD_WIDTH))
 
     def isWin(self):
         return self.grid.max() >= MAX_VALUE
