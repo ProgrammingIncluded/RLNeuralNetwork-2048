@@ -27,7 +27,8 @@ class Node:
 
     # Each node must contain a move and new tile appearance option.
     # can also be done to save a snapshot of the grid, but for now, no need.
-    def __init__(self, parent, sim, option, grid, board_width):
+    def __init__(self, parent, sim, option, grid, board_width, isPlayer):
+        self.isPlayer = isPlayer
         self.option = option
         self.parent = parent
         self.sim = sim
@@ -49,39 +50,49 @@ class Node:
     
     # Returns a grid
     def optToGrid(self, opt):
-        val = int(opt // (4 * self.board_width * self.board_width))
-        opt -= val * 4 * self.board_width * self.board_width
-        loc = opt // 4
-        dir = DIR_VAL[opt % 4]
-            
         self.sim.grid = np.copy(self.grid)
-        self.sim.moveGrid(dir)
-        res = self.sim.grid
-        if val == 0:
-            res[loc // 4, int(loc % 4)] = 2
+        res = []
+            
+        if self.isPlayer:
+            direc = opt
+            self.sim.moveGrid(direc)
+            res = self.sim.grid
         else:
-            res[loc // 4, int(loc % 4)] = 4
-    
+            board_size = self.board_width * self.board_width
+            val = opt // ( board_size)
+            loc = opt - val * board_size
+            res = self.sim.grid
+            if val == 0:
+                res[loc // 4, int(loc % 4)] = 2
+            else:
+                res[loc // 4, int(loc % 4)] = 4
+
         return res
 
 
     # given current grid, generate some options
     def genOpt(self, grid):
-        # Can save if necessary
-        self.sim.grid = np.copy(grid)
-        after_grid = self.sim.availDir()
-
-        # Move
-        dir = [DIR_KEY[k] for k, v in after_grid.items()]
-        # Then generate
         res = []
-        for k, v in after_grid.items():
-            v_f = v.flatten("K")
-            # Multiply to have unique ID for each range.
-            # Think of it as an unique array index for each config.
-            res += [DIR_KEY[k] + 4 * (y[0] + self.board_width * self.board_width * 0) for y in np.argwhere(v_f == 0).tolist()]
-            res += [DIR_KEY[k] + 4 * (y[0] + self.board_width * self.board_width * 1) for y in np.argwhere(v_f == 0).tolist()]
+        if self.isPlayer:
+            # Can save if necessary
+            self.sim.grid = np.copy(grid)
+            after_grid = self.sim.availDir()
 
+            # Move
+            dir = [DIR_KEY[k] for k, v in after_grid.items()]
+            # Then generate
+            board_size = self.board_width * self.board_width
+            for k, v in after_grid.items():
+                v_f = v.flatten("K")
+                # Multiply to have unique ID for each range.
+                # Think of it as an unique array index for each config.
+                res += [DIR_KEY[k]]
+        else:
+            v_f = grid.flatten("K")
+            board_size = self.board_width * self.board_width
+            res += [0 + y[0] for y in np.argwhere(v_f == 0).tolist()]
+            res += [1 * board_size + y[0] for y in np.argwhere(v_f == 0).tolist()]
+    
         return np.array(res)
         
     # Generate heuristic value from given grid
@@ -121,7 +132,7 @@ class Node:
         # Delete the option.
         self.children_options = np.delete(self.children_options, arg)
         grid = self.optToGrid(opt)
-        result = Node(self, self.sim, opt, grid, self.board_width)
+        result = Node(self, self.sim, opt, grid, self.board_width, not self.isPlayer)
 
         self.children = np.append(self.children, result)
         return result

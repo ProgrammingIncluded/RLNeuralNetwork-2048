@@ -15,13 +15,14 @@ import math
 import time
 
 class MCT:
-
-    def __init__(self, board_width=0):
+    def __init__(self, board_width=0, NN=None):
         if board_width == 0:
-            self.board_width = 2048
+            self.board_width = 4
         else:
             self.board_width = board_width
         self.sim = tfe.TFE(board_width)
+        # Set the neural network for the q-value.
+        self.NN = NN
 
     # Greedy algorithm for faster approach
     # Select the direction with highest direct yield
@@ -50,7 +51,7 @@ class MCT:
         GREEDY_CONTROL = GREEDY_CONTROL & ~GREEDY_INIT_ONLY 
 
         # Root node setting up.
-        root = Node(None, self.sim, -1, tfe.grid, self.board_width)
+        root = Node(None, self.sim, -1, tfe.grid, self.board_width, True)
         # print("\nBRANCHES: " + str(root.children_options.size))
         
         t_end = time.time() + sec
@@ -86,9 +87,9 @@ class MCT:
 
         highest = self.getHighestUCB(root.children)
         opt = highest.option
-        z = int(opt) // (4 *  self.board_width * self.board_width)
-        opt -= z * 4 * self.board_width * self.board_width
-        return DIR_VAL[opt % 4]
+        direc = opt
+
+        return DIR_VAL[direc]
 
     def forwardPropagate(self, root, trav, t_end, noNone = False):
         cur_node = root
