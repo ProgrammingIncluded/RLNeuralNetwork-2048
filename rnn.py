@@ -1,8 +1,7 @@
+from collections import namedtuple
+from itertools import count
 
 import numpy as np
-from itertools import count
-from collections import namedtuple
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -11,48 +10,30 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 
 import TFE as tfet
-from MCT import MCT
+from mct_config import DIR_VAL
+
+gamma = 0.99
+
+SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 
 class Policy(nn.Module):
     def __init__(self):
         super(Policy, self).__init__()
-        self.affine1 = nn.Linear(4, 128)
-        self.action_head = nn.Linear(128, 2)
+        self.linear1 = nn.Linear(16, 128)
+        self.linear2 = nn.Linear(128, 128)
+        self.action_head = nn.Linear(128, 4)
         self.value_head = nn.Linear(128, 1)
 
         self.saved_actions = []
         self.rewards = []
 
     def forward(self, x):
-        x = F.relu(self.affine1(x))
+        x = self.linear1(x.view(-1))
+        x = F.relu(self.linear2(x))
         action_scores = self.action_head(x)
         state_values = self.value_head(x)
         return F.softmax(action_scores, dim=-1), state_values
-
-
-def finish_episode():
-    R = 0
-    saved_actions = model.saved_actions
-    policy_losses = []
-    value_losses = []
-    rewards = []
-    for r in model.rewards[::-1]:
-        R = r + args.gamma * R
-        rewards.insert(0, R)
-    rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
-    for (log_prob, value), r in zip(saved_actions, rewards):
-        reward = r - value.data[0]
-        policy_losses.append(-log_prob * reward)
-        value_losses.append(F.smooth_l1_loss(value, Variable(torch.Tensor([r]))))
-    optimizer.zero_grad()
-    loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
-    loss.backward()
-    optimizer.step()
-    del model.rewards[:]
-    del model.saved_actions[:]
-
 
 
 class Simulator:
@@ -60,9 +41,10 @@ class Simulator:
         self.board_width = board_width
         self.tfe = None
         self.mct = None
+        self.n_move = 0
 
         self.model = Policy()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=3e-2)
+        self.optimizer = optim.Adamax(self.model.parameters(), lr=3e-2)
         self.reset()
 
     def new_board(self, board_width):
@@ -73,51 +55,119 @@ class Simulator:
         return tfe
 
     def reset(self):
+        # print('reset')
         self.tfe = self.new_board(self.board_width)
-        self.mct = MCT(self.board_width,NN=self.model)
+        self.n_move = 0
+        self.model.rewards = []
+        self.model.saved_actions = []
+        # self.mct = MCT(self.board_width, self.value_function, None)
 
-    def select_action(self):
+    def step(self):
+        self.n_move += 1
+        # state = torch.from_numpy(state).float()
+        x = np.log2(self.tfe.grid)
+        x[x == -np.inf] = 0
+        # print(x)
+        state = torch.Tensor(x)
+        probs, state_value = self.model(Variable(state))
 
-        state = torch.from_numpy(state).float()
-        probs, state_value = model(Variable(state))
-        m = Categorical(probs)
+        # avail = [DIR_VAL[dir] for dir in self.tfe.availDir()]
+
+        m = Categorical(
+            # F.softmax(
+            probs
+            # + Variable(torch.Tensor([0.01, 0.01, 0.01, 0.01])))
+        )
+        # print(m.probs.data.numpy())
+
+        # choose next move randomly, as opposed to deterministically (i.e. argmax)
+        # basically a MCT without an exploration term. Need to add exploration ?
         action = m.sample()
-        model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
-        return action.data[0]
+        self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
+        old_grid = np.array(self.tfe.grid)
+
+        self.tfe.moveGrid(DIR_VAL[action.data[0]])
+        # print(f'{DIR_VAL[action.data[0]]}')
+        new_grid = np.array(self.tfe.grid)
+        # print(old_grid)
+        # print(new_grid)
+        if np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
+            self.model.rewards.append(-10)
+            # self.model.rewards.append(0)
+
+            self.finish_episode()
+        else:  # valid move: no negative feedback
+            # self.model.rewards.append(self.tfe.grid.max())
+            self.model.rewards.append(0)
+
+        # generate a new tile
+        self.tfe.putNew()
+
+    def finish_episode(self):
+        R = 0
+        saved_actions = self.model.saved_actions
+        policy_losses = []
+        value_losses = []
+        raw_rewards = self.model.rewards
+        if self.tfe.isWin():
+            raw_rewards[-1] = 1000
+            # rewards = []  # reward with decay
+            # for r in reversed(raw_rewards):
+            #     R = r + gamma * R
+            #     rewards.insert(0, R)
+            # rewards = torch.Tensor(rewards)
+        elif self.tfe.isLose():
+            # raw_rewards[-1] = len(saved_actions)
+            raw_rewards[-1] = 0
+            # rewards = []  # reward with decay
+            # for r in reversed(raw_rewards):
+            #     R = r + gamma * R
+            #     rewards.insert(0, R)
+            # rewards = torch.Tensor(rewards)
+        else:
+            pass
+            # rewards = torch.Tensor(raw_rewards)
+            # raise Exception('Game not finished yet')
+
+        # rewards = []  # reward with decay
+        # for r in reversed(raw_rewards):
+        #     R = r + gamma * R
+        #     rewards.insert(0, R)
+        # rewards = torch.Tensor(rewards)
+
+        rewards = np.array(raw_rewards)
+        rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
+
+        # print(raw_rewards)
+        # print(rewards.numpy())
+        for (log_prob, value), r in zip(saved_actions, rewards):
+            reward = r - value.data[0]
+            policy_losses.append(-log_prob * reward)
+            value_losses.append(F.smooth_l1_loss(value, Variable(torch.Tensor([r]))))
+        self.optimizer.zero_grad()
+        loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
+        loss.backward()
+        self.optimizer.step()
+        self.reset()
+
+    def done(self):
+        return self.tfe.isLose() or self.tfe.isWin()
 
 
 def main():
     # create a new 4x4 board and two numbers
     sim = Simulator(4)
 
-    print("STARTING BOARD: ")
-
     torch.manual_seed(0)
 
-    SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
-
-    running_reward = 10
     for i_episode in count(1):
-        state = sim.reset()
-        for t in range(10000):  # Don't infinite loop while learning
-            action = select_action(state)
-            state, reward, done, _ = env.step(action)
-            if args.render:
-                env.render()
-            model.rewards.append(reward)
-            if done:
-                break
+        # sim.reset()
 
-        running_reward = running_reward * 0.99 + t * 0.01
-        finish_episode()
-        if i_episode % args.log_interval == 0:
-            print('Episode {}\tLast length: {:5d}\tAverage length: {:.2f}'.format(
-                i_episode, t, running_reward))
-        if running_reward > env.spec.reward_threshold:
-            print("Solved! Running reward is now {} and "
-                  "the last episode runs to {} time steps!".format(running_reward, t))
-            break
+        while not sim.done():
+            sim.step()
+        print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions))
+        sim.finish_episode()
 
 
 if __name__ == '__main__':
