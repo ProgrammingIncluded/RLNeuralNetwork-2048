@@ -18,6 +18,15 @@ class Node:
     UCB = 0
     # Value flag used for values.
     val = 0
+
+    # Store the actions for each children
+    children_action = {k:0 for k, v in DIR_KEY.items()}
+    
+    # Guess values for current state
+    guess_val = 0
+
+    # Guess for actual value of the node
+    
     grid = None
     children = np.array([])
 
@@ -27,21 +36,29 @@ class Node:
 
     # Each node must contain a move and new tile appearance option.
     # can also be done to save a snapshot of the grid, but for now, no need.
-    def __init__(self, parent, sim, option, grid, board_width, isPlayer):
+    def __init__(self, parent, sim, option, grid, board_width, isPlayer, valueFunc):
         self.isPlayer = isPlayer
         self.option = option
         self.parent = parent
         self.sim = sim
         self.board_width = board_width
+        self.valueFunc = valueFunc
         # Generate options based off availability
         self.grid = np.copy(grid)
+
+        # Generate the guessed children_actions and our current value.
+        # Only generate if we are playing
+        if self.isPlayer:
+            self.children_action, self.guess_val = self.valueFunc(grid)
+
         self.children_options = self.genOpt(grid)
 
         # If res empty and heuristics is on, try to check what type of leaf.
         self.sim.grid = grid
         if VAL_H:
             if self.children_options.size != 0:
-                self.val = np.max(self.valFromGrid(self.grid))
+                # Assuming everything is value 1 unless leaf.
+                self.val = 1
             elif self.sim.isWin():
                 self.val = LEAF_WIN_WEIGHT
             else:
@@ -132,7 +149,7 @@ class Node:
         # Delete the option.
         self.children_options = np.delete(self.children_options, arg)
         grid = self.optToGrid(opt)
-        result = Node(self, self.sim, opt, grid, self.board_width, not self.isPlayer)
+        result = Node(self, self.sim, opt, grid, self.board_width, not self.isPlayer, self.valueFunc)
 
         self.children = np.append(self.children, result)
         return result

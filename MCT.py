@@ -15,14 +15,18 @@ import math
 import time
 
 class MCT:
-    def __init__(self, board_width=0, NN=None):
+
+    def __init__(self, board_width, valueFunc, policyUpdate):
         if board_width == 0:
             self.board_width = 4
         else:
             self.board_width = board_width
         self.sim = tfe.TFE(board_width)
         # Set the neural network for the q-value.
-        self.NN = NN
+        self.valueFunc = valueFunc
+        # Tracking neural network nodes ran on
+        self.nnTracker = []
+        self.policyUpdate = policyUpdate
 
     # Greedy algorithm for faster approach
     # Select the direction with highest direct yield
@@ -51,7 +55,7 @@ class MCT:
         GREEDY_CONTROL = GREEDY_CONTROL & ~GREEDY_INIT_ONLY 
 
         # Root node setting up.
-        root = Node(None, self.sim, -1, tfe.grid, self.board_width, True)
+        root = Node(None, self.sim, -1, tfe.grid, self.board_width, True, self.valueFunc)
         # print("\nBRANCHES: " + str(root.children_options.size))
         
         t_end = time.time() + sec
@@ -89,6 +93,17 @@ class MCT:
         opt = highest.option
         direc = opt
 
+        # Now we need to do backproping.
+        # Prep data
+        dataset = []
+        for x in self.nnTracker:
+            dataset.append((x.grid, DIR_VAL[x.option], x.UCB, x.val))
+
+        self.policyUpdate(dataset)
+
+        # Remove all data
+        self.nnTracker = []
+
         return DIR_VAL[direc]
 
     def forwardPropagate(self, root, trav, t_end, noNone = False):
@@ -107,6 +122,7 @@ class MCT:
             # Try to create a child if possible, if not, two possibilities.
             res = cur_node.create_child()
 
+
             # We create all the children, go down one level.
             # OR we have no children.
             if res == False:
@@ -123,6 +139,11 @@ class MCT:
                 cur_node = self.getHighestUCB(cur_node.children)
             else:
                 # otherwise, we have created a child
+
+                # Here, we are trying to keep track of which nodes we have ran our NN.
+                if cur_node.isPlayer:
+                    self.nnTracker.append(res)
+
                 trav.append(res)
                 cur_node = res
             self.sim.grid = cur_node.grid
@@ -164,14 +185,22 @@ class MCT:
                     for s in n.parent.children:
                         s.UCB = (s.total_wins /s.total_games) + 1.6 * math.sqrt(math.log(s.parent.total_games + 1) / s.total_games)
 
-
     def getHighestUCB(self, children):
         # Check UCB, select highest UCB
         sel = None
         sel_val = float("-inf")
+        parent = None
+        if children.size != 0:
+            parent = children[0].parent
+
         for child in children:
-            if sel_val < child.UCB:
+            # We only operate on neural net if we are the player.
+            if parent.isPlayer:
+                val = child.UCB + parent.children_action[DIR_VAL[child.option]]
+            else:
+                val = child.UCB
+            if sel_val < val:
                 sel = child
-                sel_val = child.UCB
+                sel_val = val
         
         return sel

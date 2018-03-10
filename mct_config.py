@@ -26,7 +26,7 @@ GREEDY_CONTROL = False
 GREEDY_INIT_ONLY = True
 
 # TODO: Value Heuristic
-VAL_H = False
+VAL_H = True
 # Directions of corners to check, across.
 V_DIR = 2
 
