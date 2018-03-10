@@ -63,9 +63,9 @@ class Node:
             loc = opt - val * board_size
             res = self.sim.grid
             if val == 0:
-                res[loc // 4, int(loc % 4)] = 2
+                res[loc // self.board_width, int(loc % self.board_width)] = 2
             else:
-                res[loc // 4, int(loc % 4)] = 4
+                res[loc // self.board_width, int(loc % self.board_width)] = 4
 
         return res
 

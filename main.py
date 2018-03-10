@@ -15,7 +15,7 @@ import random
 
 
 def main():
-    board_width = 4
+    board_width = 5
     tfe = tfet.TFE(board_width)
     # generate a new
     tfe.putNew()
