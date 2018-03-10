@@ -5,13 +5,28 @@
 # Website: ProgrammingIncluded.com
 ############################################
 
+import torch
+from torch import nn
+from torch.autograd import Variable
+import torch.nn.functional as F
+
 import TFE as tfet
-import mct_config as mctconfig
 from MCT import *
-import time
-import random as rnd
-import sys
-import random
+
+
+class Policy(nn.Module):
+    def __init__(self):
+        super(Policy, self).__init__()
+        self.linear = nn.Linear(16, 128)
+        self.action_head = nn.Linear(128, 4)
+        self.value_head = nn.Linear(128, 1)
+
+    def forward(self, x):
+        x = F.relu(self.linear(x.view(-1)))
+        action_scores = self.action_head(x)
+        state_values = self.value_head(x)
+        return F.softmax(action_scores, dim=-1), state_values
+
 
 # TODO: Make your NN global or something?
 
@@ -23,20 +38,26 @@ import random
 # Input is specified NxN play field.
 # Probabilities should be in dictionary form where
 # keys are shown in DIR_KEY within mct_config
+model = Policy()
+
 
 def genValueFunction(grid):
-    # Put training code here.
-    # Insert forward prop code here
-    return ({'d': 1, 'l': 1, 'r': 1, 'u': 1}, 0)
+    probs, state_value = model(Variable(torch.Tensor(grid)))
+    s = sum(probs.data)
+    prob_dict = {a: p / s for a, p in zip('dlru', probs.data)}
+    return prob_dict, state_value.data[0]
+
 
 # Function called for backprop. Arguments are archived list of actions
 # queuedActions is an array of (grid, action-letter, action-state prob, state value)
 def policyUpdate(actions):
     # Insert backrpop logic
+    print(actions)
     pass
 
+
 def main():
-    board_width = 4 
+    board_width = 4
     tfe = tfet.TFE(board_width)
     # generate a new
     tfe.putNew()
@@ -48,13 +69,11 @@ def main():
 
     mct = MCT(board_width, genValueFunction, policyUpdate)
     while (not tfe.isWin()) and (not tfe.isLose()):
-
-        start = time.clock() 
+        start = time.clock()
 
         print("*********************")
 
         act = mct.run(tfe, MONTE_CARLO_RUN, True)
-
 
         print("AI SELECT ACTION: " + str(act))
         print("*********************")
@@ -78,7 +97,7 @@ def main():
         print("")
         # Flush it
         sys.stdout.flush()
-    
+
     print("FINISHED: ")
     print(tfe.grid)
     print("")
@@ -86,7 +105,7 @@ def main():
     print("IS WIN?: ")
     print(tfe.isWin())
     print("")
-    
+
     print("IS LOSE?: ")
     print(tfe.isLose())
     print("")
