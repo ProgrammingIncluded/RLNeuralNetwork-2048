@@ -1,5 +1,3 @@
-import argparse
-import gym
 import numpy as np
 from itertools import count
 from collections import namedtuple
@@ -11,25 +9,8 @@ import torch.optim as optim
 from torch.autograd import Variable
 from torch.distributions import Categorical
 
-
-parser = argparse.ArgumentParser(description='PyTorch actor-critic example')
-parser.add_argument('--gamma', type=float, default=0.99, metavar='G',
-                    help='discount factor (default: 0.99)')
-parser.add_argument('--seed', type=int, default=543, metavar='N',
-                    help='random seed (default: 1)')
-parser.add_argument('--render', action='store_true',
-                    help='render the environment')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='interval between training status logs (default: 10)')
-args = parser.parse_args()
-
-
-env = gym.make('CartPole-v0')
-env.seed(args.seed)
-torch.manual_seed(args.seed)
-
-
-SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+import TFE as tfet
+from MCT import MCT
 
 
 class Policy(nn.Module):
@@ -47,19 +28,6 @@ class Policy(nn.Module):
         action_scores = self.action_head(x)
         state_values = self.value_head(x)
         return F.softmax(action_scores, dim=-1), state_values
-
-
-model = Policy()
-optimizer = optim.Adam(model.parameters(), lr=3e-2)
-
-
-def select_action(state):
-    state = torch.from_numpy(state).float()
-    probs, state_value = model(Variable(state))
-    m = Categorical(probs)
-    action = m.sample()
-    model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
-    return action.data[0]
 
 
 def finish_episode():
@@ -85,10 +53,51 @@ def finish_episode():
     del model.saved_actions[:]
 
 
+class Simulator:
+    def __init__(self, board_width):
+        self.board_width = board_width
+        self.tfe = None
+        self.mct = None
+
+        self.model = Policy()
+        self.optimizer = optim.Adam(self.model.parameters(), lr=3e-2)
+        self.reset()
+
+    def new_board(self, board_width):
+        tfe = tfet.TFE(board_width)
+        # generate a new
+        tfe.putNew()
+        tfe.putNew()
+        return tfe
+
+    def reset(self):
+        self.tfe = self.new_board(self.board_width)
+        self.mct = MCT(self.board_width,NN=self.model)
+
+    def select_action(self):
+
+        state = torch.from_numpy(state).float()
+        probs, state_value = model(Variable(state))
+        m = Categorical(probs)
+        action = m.sample()
+        model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
+        return action.data[0]
+
+
+
 def main():
+    # create a new 4x4 board and two numbers
+    sim = Simulator(4)
+
+    print("STARTING BOARD: ")
+
+    torch.manual_seed(0)
+
+    SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+
     running_reward = 10
     for i_episode in count(1):
-        state = env.reset()
+        state = sim.reset()
         for t in range(10000):  # Don't infinite loop while learning
             action = select_action(state)
             state, reward, done, _ = env.step(action)
