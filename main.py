@@ -30,9 +30,9 @@ def genValueFunction(grid):
     return ({'d': 1, 'l': 1, 'r': 1, 'u': 1}, 0)
 
 # Function called for backprop. Arguments are archived list of actions
-# queuedActions is an array of (grid, action-letter, action-state prob, state value)
+# queuedActions is an array of (grid, action-letter, action-state prob, state value, node)
 def policyUpdate(actions):
-    # Insert backrpop logic
+    # Insert backrpop logi
     pass
 
 def main():

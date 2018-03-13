@@ -97,7 +97,7 @@ class MCT:
         # Prep data
         dataset = []
         for x in self.nnTracker:
-            dataset.append((x.grid, DIR_VAL[x.option], x.UCB, x.val))
+            dataset.append((x.grid, DIR_VAL[x.option], x.UCB, x.val, x))
 
         self.policyUpdate(dataset)
 
