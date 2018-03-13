@@ -97,7 +97,7 @@ class MCT:
         # Prep data
         dataset = []
         for x in self.nnTracker:
-            dataset.append((x.grid, DIR_VAL[x.option], x.UCB, x.val))
+            dataset.append((x.grid, DIR_VAL[x.option], x.UCB, x.val, x))
 
         self.policyUpdate(dataset)
 
@@ -172,18 +172,18 @@ class MCT:
                 # Heuristics update. Note the accum
                 if VAL_H:
                     n.val = v_accum
-                    n.UCB += v_accum
+                    n.UCB += v_accum + n.guess_val
                 else:
-                    n.UCB += (n.total_wins /n.total_games)
+                    n.UCB += (n.total_wins /n.total_games) + n.guess_val
                 
                 # update siblings as well
                 if VAL_H:
                     # v is not updated in siblings, only parent totals.
                     for s in n.parent.children:
-                        s.UCB = s.val + 1.6 * math.sqrt(math.log(s.parent.total_games + 1) / s.total_games)
+                        s.UCB = s.guess_val + s.val + 1.6 * math.sqrt(math.log(s.parent.total_games + 1) / s.total_games)
                 else:
                     for s in n.parent.children:
-                        s.UCB = (s.total_wins /s.total_games) + 1.6 * math.sqrt(math.log(s.parent.total_games + 1) / s.total_games)
+                        s.UCB = s.guess_val + (s.total_wins /s.total_games) + 1.6 * math.sqrt(math.log(s.parent.total_games + 1) / s.total_games)
 
     def getHighestUCB(self, children):
         # Check UCB, select highest UCB
