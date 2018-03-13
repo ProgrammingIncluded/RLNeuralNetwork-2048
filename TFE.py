@@ -25,6 +25,11 @@ class TFE:
     def setGrid(self, grid):
         print(self.board_width)
         self.grid = grid
+    
+    def copy(self):
+        ret = TFE(self.board_width)
+        ret.grid = self.grid.copy()
+        return ret
 
     # Attempt to put a new number
     def putNew(self):
@@ -128,8 +133,8 @@ class TFE:
     def restart(self):
         grid = np.zeros((self.board_width,self.board_width))
 
-    def isWin(self):
-        return self.grid.max() >= MAX_VALUE
+    def isWin(self, max_value = MAX_VALUE):
+        return self.grid.max() >= max_value
 
     # Check if loosing state. Expensive! Calls availDir
     def isLose(self):
