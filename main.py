@@ -42,6 +42,10 @@ model = Policy()
 
 
 def genValueFunction(grid):
+    # encoding with log2
+    x = np.log2(grid)
+    x[x == -np.inf] = 0
+
     probs, state_value = model(Variable(torch.Tensor(grid)))
     s = sum(probs.data)
     prob_dict = {a: p / s for a, p in zip('dlru', probs.data)}
