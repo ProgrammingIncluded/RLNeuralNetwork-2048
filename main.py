@@ -17,11 +17,11 @@ import random
 
 # Function to generate tuples of size two:
 # (
-#    probability to next state taking direction i, 
+#    UCB to next state taking direction i, 
 #    current node value 
 # )
 # Input is specified NxN play field.
-# Probabilities should be in dictionary form where
+# UCB should be in dictionary form where
 # keys are shown in DIR_KEY within mct_config
 
 def genValueFunction(grid):
