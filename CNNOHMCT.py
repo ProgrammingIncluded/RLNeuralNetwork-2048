@@ -17,49 +17,69 @@ class MCMC:
 		self.model = model
 	
 	def sampleFromMCT(self, initialBoardState, terminationThreshold = 10, p = 1.0):
+		self.totalReward = 0
+		self.gameCnt = 0
 		self.outputs = []
 		self.targets = []
 		self.terminationThreshold = terminationThreshold
 		self.proceed(MCTState(initialBoardState, p))
 		return (torch.cat(self.outputs, 0), Variable(torch.FloatTensor(self.targets)))
 	
-	def proceed(self, currentState):
+	def proceed(self, currentState, d = 0):
+		'''
 		if currentState.boardState.isWin((2 ** self.terminationThreshold) * 2):
+			self.winCount += 1
 			return 1
+		'''
+#		print(d)
+#		print(currentState.boardState.grid)
 		if currentState.boardState.isLose():
-			return 0
+			target = currentState.boardState.grid.max().astype(float)
+			self.totalReward += target
+			self.gameCnt += 1
+			return target
 		if np.random.rand() < currentState.p:
-			return self.proceedTreeState(currentState)
+			return self.proceedTreeState(currentState, d + 1)
 		else:
-			return self.proceedLinearState(currentState)
+			return self.proceedLinearState(currentState, d + 1)
 	
-	def proceedTreeState(self, currentState):
-		move = ['u', 'd', 'l', 'r']
+	def proceedTreeState(self, currentState, d):
+		moves = ['u', 'd', 'l', 'r']
 		netState = convertBoardToNet(currentState.boardState)
 		valueVariable = self.model(netState)
 		maxTarget = 0
-		for i in range(TREE_STATE_PLAYER_BRANCH_COUNT):
-			tempboard = currentState.boardState.copy()
-			tempboard.moveGrid(move[i])
-			target = 0
-			for j in range(TREE_STATE_SYSTEM_BRANCH_COUNT):
-				temptempboard = tempboard.copy()
-				temptempboard.putNew()
-				target += self.proceed(MCTState(temptempboard, currentState.p / (TREE_STATE_PLAYER_BRANCH_COUNT * TREE_STATE_SYSTEM_BRANCH_COUNT))) / TREE_STATE_SYSTEM_BRANCH_COUNT
-			self.outputs.append(valueVariable[0, i])
-			self.targets.append(target)
-			maxTarget = max(target, maxTarget)
+		availDirs = currentState.boardState.availDir()
+		for i, move in enumerate(moves):
+			if move not in availDirs:
+				self.outputs.append(valueVariable[0, i])
+				self.targets.append(0)
+			else:
+				tempboard = currentState.boardState.copy()
+				tempboard.moveGrid(move)
+				target = 0
+				for j in range(TREE_STATE_SYSTEM_BRANCH_COUNT):
+					temptempboard = tempboard.copy()
+					temptempboard.putNew()
+					target += self.proceed(MCTState(temptempboard, currentState.p / (TREE_STATE_PLAYER_BRANCH_COUNT * TREE_STATE_SYSTEM_BRANCH_COUNT)), d) / TREE_STATE_SYSTEM_BRANCH_COUNT
+				self.outputs.append(valueVariable[0, i])
+				self.targets.append(np.log2(target))
+				maxTarget = max(target, maxTarget)
 		return maxTarget
 	
-	def proceedLinearState(self, currentState):
-		move = ['u', 'd', 'l', 'r']
+	def proceedLinearState(self, currentState, d):
+		moves = ['u', 'd', 'l', 'r']
 		netState = convertBoardToNet(currentState.boardState)
 		valueVariable = self.model(netState)
-		i = np.random.randint(TREE_STATE_PLAYER_BRANCH_COUNT)
+		valueNP = valueVariable.data.numpy()
+		availDirs = currentState.boardState.availDir()
+		for i, move in enumerate(moves):
+			if move not in availDirs:
+				valueNP[0,i] = -1e9
+		i = np.argmax(valueNP)
 		tempboard = currentState.boardState.copy()
-		tempboard.moveGrid(move[i])
+		tempboard.moveGrid(moves[i])
 		tempboard.putNew()
-		target = self.proceed(MCTState(tempboard, currentState.p))
+		target = self.proceed(MCTState(tempboard, currentState.p), d)
 		self.outputs.append(valueVariable[0, i])
-		self.targets.append(target)
+		self.targets.append(np.log2(target))
 		return target
