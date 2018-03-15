@@ -22,6 +22,8 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
         self.linear1 = nn.Linear(16, 128)
         self.linear2 = nn.Linear(128, 128)
+        self.linear3 = nn.Linear(128, 128)
+        self.linear4 = nn.Linear(128, 128)
         self.action_head = nn.Linear(128, 4)
         self.value_head = nn.Linear(128, 1)
 
@@ -29,8 +31,10 @@ class Policy(nn.Module):
         self.rewards = []
 
     def forward(self, x):
-        x = self.linear1(x.view(-1))
+        x = F.relu(self.linear1(x.view(-1)))
         x = F.relu(self.linear2(x))
+        x = F.relu(self.linear3(x))
+        x = F.relu(self.linear4(x))
         action_scores = self.action_head(x)
         state_values = self.value_head(x)
         return F.softmax(action_scores, dim=-1), state_values
@@ -119,7 +123,7 @@ class Simulator:
             # rewards = torch.Tensor(rewards)
         elif self.tfe.isLose():
             # raw_rewards[-1] = len(saved_actions)
-            raw_rewards[-1] = 0
+            raw_rewards[-1] = -1000
             # rewards = []  # reward with decay
             # for r in reversed(raw_rewards):
             #     R = r + gamma * R
@@ -166,7 +170,7 @@ def main():
 
         while not sim.done():
             sim.step()
-        print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions))
+        print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions), np.sum(sim.tfe.grid))
         sim.finish_episode()
 
 
