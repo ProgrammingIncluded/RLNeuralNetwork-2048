@@ -59,9 +59,16 @@ def genValueFunction(grid):
 # Function called for backprop. Arguments are archived list of actions
 # queuedActions is an array of (grid, action-letter, action-state prob, state value, node)
 def policyUpdate(actions):
-    # Insert backrpop logi
-    # Get normalized values
+    # Again, run the neural network, this is lazy coding
+    # We back prop this time.
+    inVect = torch.from_numpy(grid.flatten())
+
+    # Get the batch shape
+    inVect = inVect.unsqueeze(0)
+    results = NN.foward(Variable(inVect).float()
+    
     pass
+
 
 def main():
     board_width = BOARD_WIDTH
