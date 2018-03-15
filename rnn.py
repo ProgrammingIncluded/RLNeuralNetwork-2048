@@ -86,25 +86,31 @@ class Simulator:
 
         # choose next move randomly, as opposed to deterministically (i.e. argmax)
         # basically a MCT without an exploration term. Need to add exploration ?
-        action = m.sample()
-        self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
-        old_grid = np.array(self.tfe.grid)
+        while True:
+            action = m.sample()
+            self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
-        self.tfe.moveGrid(DIR_VAL[action.data[0]])
-        # print(f'{DIR_VAL[action.data[0]]}')
-        new_grid = np.array(self.tfe.grid)
-        # print(old_grid)
-        # print(new_grid)
-        if np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
-            self.model.rewards.append(-10)
-            # self.model.rewards.append(0)
+            old_grid = np.array(self.tfe.grid)
 
-            self.finish_episode()
-        else:  # valid move: no negative feedback
-            # self.model.rewards.append(self.tfe.grid.max())
-            self.model.rewards.append(0)
-
+            self.tfe.moveGrid(DIR_VAL[action.data[0]])
+            # print(f'{DIR_VAL[action.data[0]]}')
+            new_grid = np.array(self.tfe.grid)
+            # print(old_grid)
+            # print(new_grid)
+            if not np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
+                self.model.rewards.append(0)
+                break
+            """
+            if np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
+                self.model.rewards.append(-10)
+                # self.model.rewards.append(0)
+    
+                self.finish_episode()
+            else:  # valid move: no negative feedback
+                # self.model.rewards.append(self.tfe.grid.max())
+                self.model.rewards.append(0)
+            """
         # generate a new tile
         self.tfe.putNew()
 
@@ -115,7 +121,7 @@ class Simulator:
         value_losses = []
         raw_rewards = self.model.rewards
         if self.tfe.isWin():
-            raw_rewards[-1] = 1000
+            raw_rewards[-1] = 1
             # rewards = []  # reward with decay
             # for r in reversed(raw_rewards):
             #     R = r + gamma * R
@@ -123,7 +129,7 @@ class Simulator:
             # rewards = torch.Tensor(rewards)
         elif self.tfe.isLose():
             # raw_rewards[-1] = len(saved_actions)
-            raw_rewards[-1] = -1000
+            raw_rewards[-1] = -1
             # rewards = []  # reward with decay
             # for r in reversed(raw_rewards):
             #     R = r + gamma * R
@@ -134,19 +140,20 @@ class Simulator:
             # rewards = torch.Tensor(raw_rewards)
             # raise Exception('Game not finished yet')
 
-        # rewards = []  # reward with decay
-        # for r in reversed(raw_rewards):
-        #     R = r + gamma * R
-        #     rewards.insert(0, R)
-        # rewards = torch.Tensor(rewards)
+        rewards = []  # reward with decay
+        for r in reversed(raw_rewards):
+            R = r + gamma * R
+            rewards.insert(0, R)
 
-        rewards = np.array(raw_rewards)
+        rewards = torch.Tensor(rewards)
+        # rewards = np.array(raw_rewards)
         rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
 
         # print(raw_rewards)
         # print(rewards.numpy())
         for (log_prob, value), r in zip(saved_actions, rewards):
             reward = r - value.data[0]
+            # print(log_prob)
             policy_losses.append(-log_prob * reward)
             value_losses.append(F.smooth_l1_loss(value, Variable(torch.Tensor([r]))))
         self.optimizer.zero_grad()
