@@ -12,8 +12,15 @@ import time
 import random as rnd
 import sys
 import random
+import CNN as cnn
+import torch.nn as nn
+from torch.autograd import Variable
+import torch
 
-# TODO: Make your NN global or something?
+# All the lovely neural network stuff goes here.
+BOARD_WIDTH = 4
+NN = cnn.CNN(BOARD_WIDTH * BOARD_WIDTH)
+criterion = nn.MSELoss()
 
 # Function to generate tuples of size two:
 # (
@@ -24,19 +31,40 @@ import random
 # UCB should be in dictionary form where
 # keys are shown in DIR_KEY within mct_config
 
+
 def genValueFunction(grid):
-    # Put training code here.
-    # Insert forward prop code here
-    return ({'d': 1, 'l': 1, 'r': 1, 'u': 1}, 0)
+    # Convert numpy grid to input for NN.
+    inVect = torch.from_numpy(grid.flatten())
+
+    # Get the batch shape
+    inVect = inVect.unsqueeze(0)
+    results = NN.foward(Variable(inVect).float())
+
+    # Get results into numpy
+    resultsVect = results.data.numpy()
+
+    # Reduce dimensions
+    resultsVect = resultsVect[0, :]
+    # Prepare for output
+    resultDict = {'d': resultsVect[0], 'l': resultsVect[1]}
+    # too lazy, just put it here
+    resultDict['r'] = resultsVect[2]
+    resultDict['u'] = resultsVect[3]
+
+    resultTuple = (resultDict, resultsVect[4])
+    
+    NN.zero_grad()
+    return resultTuple
 
 # Function called for backprop. Arguments are archived list of actions
 # queuedActions is an array of (grid, action-letter, action-state prob, state value, node)
 def policyUpdate(actions):
     # Insert backrpop logi
+    # Get normalized values
     pass
 
 def main():
-    board_width = 4 
+    board_width = BOARD_WIDTH
     tfe = tfet.TFE(board_width)
     # generate a new
     tfe.putNew()
