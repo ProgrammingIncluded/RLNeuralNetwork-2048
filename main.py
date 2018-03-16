@@ -61,13 +61,33 @@ def genValueFunction(grid):
 def policyUpdate(actions):
     # Again, run the neural network, this is lazy coding
     # We back prop this time.
-    inVect = torch.from_numpy(grid.flatten())
+    for v in actions:
+        inVect = torch.from_numpy(v[0].flatten())
 
-    # Get the batch shape
-    inVect = inVect.unsqueeze(0)
-    results = NN.foward(Variable(inVect).float()
-    
-    pass
+        # Get the batch shape
+        inVect = inVect.unsqueeze(0)
+        results = NN.foward(Variable(inVect).float())
+        
+        # Make a result copy
+        resultsCopy = torch.FloatTensor([0,0,0,0,0])
+        resultsCopy = results.data.clone()
+
+        # Normalize the action-state probs
+        node = v[-1]
+        currentProbs = {}
+        for c in node.children:
+            currentProbs[DIR_VAL[c.option]] = c.total_wins / node.total_games
+        
+        for key, value in currentProbs.items():
+            resultsCopy[0, DIR_KEY[key]] = value
+
+        # copy down whatever we have for the state value
+        resultsCopy[0, 4] = v[3]
+        print(resultsCopy)
+        exit(0)
+
+        loss = criterion(results, )
+
 
 
 def main():
@@ -81,14 +101,14 @@ def main():
     print(tfe.grid)
     print("")
 
-    mct = MCT(board_width, genValueFunction, policyUpdate)
+    mct = MCT(MONTE_CARLO_RUN)
     while (not tfe.isWin()) and (not tfe.isLose()):
 
         start = time.clock() 
 
         print("*********************")
 
-        act = mct.run(tfe, MONTE_CARLO_RUN, True)
+        act = mct.run(tfe)
 
 
         print("AI SELECT ACTION: " + str(act))

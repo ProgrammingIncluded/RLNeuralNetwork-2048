@@ -22,9 +22,20 @@ class TFE:
         self.board_width = board_width
         self.grid = np.zeros((self.board_width, self.board_width), np.int64)
 
+    # Call function to copy this
+    def copy(self):
+        cp = TFE(self.board_width)
+        cp.grid = self.grid.copy()
+        return cp
+
     def setGrid(self, grid):
         print(self.board_width)
         self.grid = grid
+
+    # Add a new value at a certain position
+    def putNewAt(self, posx, posy, value):
+        self.grid[posx, posy] = value
+
 
     # Attempt to put a new number
     def putNew(self):
