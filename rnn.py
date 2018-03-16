@@ -74,32 +74,34 @@ class Simulator:
         # print(x)
         state = torch.Tensor(x)
         probs, state_value = self.model(Variable(state))
-
         # avail = [DIR_VAL[dir] for dir in self.tfe.availDir()]
 
-        m = Categorical(
-            # F.softmax(
-            probs
-            # + Variable(torch.Tensor([0.01, 0.01, 0.01, 0.01])))
-        )
         # print(m.probs.data.numpy())
 
         # choose next move randomly, as opposed to deterministically (i.e. argmax)
         # basically a MCT without an exploration term. Need to add exploration ?
 
         while True:
+            # print(probs.data)
+
+            m = Categorical(
+                # F.softmax(
+                probs
+                # + Variable(torch.Tensor([0.01, 0.01, 0.01, 0.01])))
+            )
             action = m.sample()
-            self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
             old_grid = np.array(self.tfe.grid)
 
             self.tfe.moveGrid(DIR_VAL[action.data[0]])
             # print(f'{DIR_VAL[action.data[0]]}')
             new_grid = np.array(self.tfe.grid)
-            # print(old_grid)
-            # print(new_grid)
-            if not np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
+
+            if np.array_equal(old_grid, new_grid):
+                probs.data[action.data[0]] = 0
+            else:
                 self.model.rewards.append(0)
+                self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
                 break
             """
             if np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
