@@ -11,18 +11,38 @@ import math
 import operator
 import numpy as np
 
-# This monte carlo implementation assumes MCT is regenerated
-# every move. 
-class MCT:
-    def __init__(self, secondsPerMove):
-        self.root = None
-        self.secondsPerMove = secondsPerMove
-    
-    # Run the simulation
-    def run(self, game):
+# This monte carlo implementation assumes MCT is retained every move.
+class MCTZero:
+    def __init__(self, game, secondsPerMove):
         # Create a new root
         self.root = MCTNode(None, game, -1, True)
-        
+        self.game = game
+        self.secondsPerMove = secondsPerMove
+    
+    def adversaryDecision(self, decision):
+        # Decode option number
+        toggle =  0 if decision[1] == 2 else 1
+        boardSize = self.game.board_width ** 2
+        opt =  toggle * boardSize + decision[0][1] + decision[0][0] * self.game.board_width
+
+        # check if inside
+        if opt in self.root.childrenOptions:
+            self.root = self.root.genChild(opt)
+        else:
+            # If not, must be one of the children. Search for it
+            res = None
+            for child in self.root.children:
+                if child.opt == opt:
+                    res = child
+            self.root = res
+    
+        # reset the root
+        self.root.parent = None
+        self.root.opt = -1
+
+
+    # Run the simulation
+    def playerDecision(self):
         # Wrap everything in a timer
         endTime = time.time() + self.secondsPerMove
 
@@ -54,8 +74,16 @@ class MCT:
             print("MCTS not enough time")
             return act
         
+        # Before we leave, update new root
+        self.root = self.root.children[np.argmax(ucbs)]
+        seloption = self.root.opt
+
+        # Reset
+        self.root.parent = None
+        self.opt = -1
+        
         # Convert int key into a letter
-        return DIR_VAL[self.root.children[np.argmax(ucbs)].opt]
+        return DIR_VAL[seloption]
     
     def backpropagate(self, node):
         win = 1 if node.game.isWin() else 0

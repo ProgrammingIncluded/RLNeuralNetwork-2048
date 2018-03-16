@@ -35,27 +35,19 @@ class MCTNode:
     def isLeaf(self):
         return (self.allChildrenGenerated() and len(self.children) == 0)
 
-    # Randomly generate a child
-    # Returns false if no child can be generated
-    def randGenChild(self):
-        if self.allChildrenGenerated():
-            return False
-        
-        # Randomly pick an option
-        randOptionIndex = random.randint(0, len(self.childrenOptions)-1)
-        randOption = self.childrenOptions[randOptionIndex]
-        del self.childrenOptions[randOptionIndex]
-
+    # Generate a child based off options
+    # We do not check if opt is valid.
+    def genChild(self, opt):
         if self.isPlayerDecision:
             copyGame = self.game.copy()
-            copyGame.moveGrid(DIR_VAL[randOption])
-            res = MCTNode(self, copyGame, randOption, not self.isPlayerDecision)
+            copyGame.moveGrid(DIR_VAL[opt])
+            res = MCTNode(self, copyGame, opt, not self.isPlayerDecision)
         else:
             copyGame = self.game.copy()
             boardSize = self.game.board_width**2
             # We need to decode our options
-            valOpt = randOption // (boardSize)
-            loc = randOption - valOpt * boardSize
+            valOpt = opt // (boardSize)
+            loc = opt - valOpt * boardSize
             
             # Get value to place at position
             val = 2
@@ -65,10 +57,21 @@ class MCTNode:
             # Place the actual value
             bw = self.game.board_width
             copyGame.putNewAt(loc // bw, int(loc % bw), val)
-            res = MCTNode(self, copyGame, randOption, not self.isPlayerDecision)
+            res = MCTNode(self, copyGame, opt, not self.isPlayerDecision)
             
         self.children.append(res)
         return res
+
+    # Randomly generate a child. Calls genChild
+    def randGenChild(self):
+        if self.allChildrenGenerated():
+            return False
+        
+        # Randomly pick an option
+        randOptionIndex = random.randint(0, len(self.childrenOptions)-1)
+        randOption = self.childrenOptions[randOptionIndex]
+        del self.childrenOptions[randOptionIndex]
+        return self.genChild(randOption)
 
     # check if node has all the children
     def allChildrenGenerated(self):

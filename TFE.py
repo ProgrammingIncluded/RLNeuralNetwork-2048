@@ -46,8 +46,9 @@ class TFE:
         
         sel = rnd.randint(0, zero.shape[0] - 1)
         selK = zero[sel, :]
-        grid[selK[0], selK[1]] =  2 if rnd.randint(0, 100) > 10 else 4
-        return True
+        val = 2 if rnd.randint(0, 100) > 10 else 4
+        grid[selK[0], selK[1]] =  val
+        return selK, val
 
     # Move a single cell, merges if possible.
     def moveCell(self, x, y, dir):
