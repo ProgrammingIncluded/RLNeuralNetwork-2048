@@ -17,10 +17,23 @@ gamma = 0.99
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 
 
+def one_hot(board):
+    # one_hot_total = []
+    # lookup = [1, 2, 4, ]
+    grid = np.zeros((4, 4, 10))
+    for i, row in enumerate(board):
+        for j, tile in enumerate(row):
+            # print(tile)
+            grid[i, j, tile] = 1
+            # one_hot = [0] * 10
+    # print(grid)
+    return grid
+
+
 class Policy(nn.Module):
     def __init__(self):
         super(Policy, self).__init__()
-        self.linear1 = nn.Linear(16, 128)
+        self.linear1 = nn.Linear(4*4*10, 128)
         self.linear2 = nn.Linear(128, 128)
         self.linear3 = nn.Linear(128, 128)
         self.linear4 = nn.Linear(128, 128)
@@ -71,6 +84,7 @@ class Simulator:
         # state = torch.from_numpy(state).float()
         x = np.log2(self.tfe.grid)
         x[x == -np.inf] = 0
+        x = one_hot(x.astype(int))
         # print(x)
         state = torch.Tensor(x)
         probs, state_value = self.model(Variable(state))
@@ -89,7 +103,6 @@ class Simulator:
 
         while True:
             action = m.sample()
-            self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
 
             old_grid = np.array(self.tfe.grid)
 
@@ -99,6 +112,7 @@ class Simulator:
             # print(old_grid)
             # print(new_grid)
             if not np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
+                self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
                 self.model.rewards.append(0)
                 break
             """
