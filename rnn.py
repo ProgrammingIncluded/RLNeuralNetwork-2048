@@ -13,20 +13,17 @@ import TFE as tfet
 from mct_config import DIR_VAL
 
 gamma = 0.99
-
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+MODEL_PATH = 'model/model_saved'
+LOAD_MODEL = False
+OUTPUT_PATH = 'output.txt'
 
 
 def one_hot(board):
-    # one_hot_total = []
-    # lookup = [1, 2, 4, ]
     grid = np.zeros((4, 4, 10))
     for i, row in enumerate(board):
         for j, tile in enumerate(row):
-            # print(tile)
             grid[i, j, tile] = 1
-            # one_hot = [0] * 10
-    # print(grid)
     return grid
 
 
@@ -54,6 +51,7 @@ class Policy(nn.Module):
 
 
 class Simulator:
+
     def __init__(self, board_width):
         self.board_width = board_width
         self.tfe = None
@@ -61,6 +59,8 @@ class Simulator:
         self.n_move = 0
 
         self.model = Policy()
+        if LOAD_MODEL:
+            self.model.load_state_dict(torch.load(MODEL_PATH))
         self.optimizer = optim.Adamax(self.model.parameters(), lr=3e-2)
         self.reset()
 
@@ -88,20 +88,21 @@ class Simulator:
         # print(x)
         state = torch.Tensor(x)
         probs, state_value = self.model(Variable(state))
-
         # avail = [DIR_VAL[dir] for dir in self.tfe.availDir()]
 
-        m = Categorical(
-            # F.softmax(
-            probs
-            # + Variable(torch.Tensor([0.01, 0.01, 0.01, 0.01])))
-        )
         # print(m.probs.data.numpy())
 
         # choose next move randomly, as opposed to deterministically (i.e. argmax)
         # basically a MCT without an exploration term. Need to add exploration ?
 
         while True:
+            # print(probs.data)
+
+            m = Categorical(
+                # F.softmax(
+                probs
+                # + Variable(torch.Tensor([0.01, 0.01, 0.01, 0.01])))
+            )
             action = m.sample()
 
             old_grid = np.array(self.tfe.grid)
@@ -109,11 +110,13 @@ class Simulator:
             self.tfe.moveGrid(DIR_VAL[action.data[0]])
             # print(f'{DIR_VAL[action.data[0]]}')
             new_grid = np.array(self.tfe.grid)
-            # print(old_grid)
-            # print(new_grid)
-            if not np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
-                self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
+
+
+            if np.array_equal(old_grid, new_grid):
+                probs.data[action.data[0]] = 0
+            else:
                 self.model.rewards.append(0)
+                self.model.saved_actions.append(SavedAction(m.log_prob(action), state_value))
                 break
             """
             if np.array_equal(old_grid, new_grid):  # invalid move: negative feedback
@@ -181,6 +184,9 @@ class Simulator:
 
 
 def main():
+
+    f = open(OUTPUT_PATH,'w')
+
     # create a new 4x4 board and two numbers
     sim = Simulator(4)
 
@@ -192,8 +198,14 @@ def main():
         while not sim.done():
             sim.step()
         print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions), np.sum(sim.tfe.grid))
+        print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions), np.sum(sim.tfe.grid), file=f)
+        f.flush()
         sim.finish_episode()
 
+        if i_episode % 100 == 0:
+            torch.save(sim.model.state_dict(), MODEL_PATH)
+
+    f.close()
 
 if __name__ == '__main__':
     main()
