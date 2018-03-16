@@ -13,11 +13,14 @@ import numpy as np
 
 # This monte carlo implementation assumes MCT is retained every move.
 class MCTZero:
-    def __init__(self, game, secondsPerMove):
+    def __init__(self, game, secondsPerMove, genValFunc, policyUpdateFunc):
         # Create a new root
         self.root = MCTNode(None, game, -1, True)
         self.game = game
         self.secondsPerMove = secondsPerMove
+        self.genValFunc = genValFunc
+        self.policyUpdateFunc = policyUpdateFunc
+        self.tracker = []
     
     def adversaryDecision(self, decision):
         # Decode option number
@@ -46,6 +49,8 @@ class MCTZero:
         # Wrap everything in a timer
         endTime = time.time() + self.secondsPerMove
 
+        self.tracker.append(self.root)
+
         while time.time() < endTime or not self.root.allChildrenGenerated():
             # Start from the root
             curNode = self.root
@@ -60,15 +65,31 @@ class MCTZero:
             # Simulation, if false then that means we hit
             # leaf node prematurely.
             if genNode:
+                # Add to tracker
+                self.tracker.append(genNode)
+                # Estimate q
+                genNode.guessProbs, genNode.guessQ = self.genValFunc(genNode.game.grid)
+
                 curNode = self.simulation(genNode)
 
             # Backpropagate result
             self.backpropagate(curNode)
+
+            # Also backpropogate what we learned
+            actions = []
+            for t in self.tracker:
+                # Only backprop for player decisions
+                if t.isPlayerDecision:
+                    actions.append((t.stateActProbs, t.wins / t.totalGames, t))
+            # Call function to train NN
+            self.policyUpdateFunc(actions)
+            # Reset trackers 
+            self.tracker = []
+                
         
         # Times up! Time to make a decision
         # Pick the one with the highest UCB
         ucbs = self.childrenUCB(self.root)
-        print(ucbs)
         act = 'u'
         if len(self.root.childrenOptions) != 0:
             print("MCTS not enough time")
@@ -84,7 +105,7 @@ class MCTZero:
         
         # Convert int key into a letter
         return DIR_VAL[seloption]
-    
+
     def backpropagate(self, node):
         win = 1 if node.game.isWin() else 0
         while node is not None:
@@ -102,6 +123,10 @@ class MCTZero:
         # Use heavy heuristics
         while not node.isLeaf():
             node = node.randGenChild()
+            
+            self.tracker.append(node)
+            # Estimate q
+            node.guessProbs, node.guessQ = self.genValFunc(node.game.grid)
 
         return node
 
@@ -114,13 +139,17 @@ class MCTZero:
             arg = np.argmax(childrenUCB)
             curNode = curNode.children[arg]
 
+            self.tracker.append(curNode)
+            curNode.guessProbs, curNode.guessQ = self.genValFunc(curNode.game.grid)
+
         return curNode
 
     # Calculate ucb of the children of node
     def childrenUCB(self, node):
         childrenUCB = []
         for child in node.children:
-            ucb = child.wins / child.totalGames + 1.6 * math.log(node.totalGames / child.totalGames)
+            bias = ((child.wins / child.totalGames) + child.guessQ) / 2
+            ucb =  bias + 1.6 * math.log(node.totalGames / child.totalGames)
             childrenUCB.append(ucb)
         return childrenUCB
     

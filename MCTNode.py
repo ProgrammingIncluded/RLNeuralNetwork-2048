@@ -18,7 +18,9 @@ class MCTNode:
         self.parent = parent
         self.game = gameState.copy()
         self.isPlayerDecision = isPlayerDecision
-        self.stateActProbs = np.zeros(4)
+        self.stateActProbs = {}
+        self.guessQ = 0
+        self.guessProbs = {}
 
         # Variable to hold all possible children but not yet generated.
         self.childrenOptions = []

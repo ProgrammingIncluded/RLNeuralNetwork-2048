@@ -21,6 +21,7 @@ import torch
 BOARD_WIDTH = 4
 NN = cnn.CNN(BOARD_WIDTH * BOARD_WIDTH)
 criterion = nn.MSELoss()
+optimizer = torch.optim.SGD(NN.parameters(), lr=0.01)
 
 # Function to generate tuples of size two:
 # (
@@ -46,47 +47,45 @@ def genValueFunction(grid):
     # Reduce dimensions
     resultsVect = resultsVect[0, :]
     # Prepare for output
-    resultDict = {'d': resultsVect[0], 'l': resultsVect[1]}
+    resultDict = {0: resultsVect[0], 1: resultsVect[1]}
     # too lazy, just put it here
-    resultDict['r'] = resultsVect[2]
-    resultDict['u'] = resultsVect[3]
+    resultDict[2] = resultsVect[2]
+    resultDict[3] = resultsVect[3]
 
     resultTuple = (resultDict, resultsVect[4])
     
     NN.zero_grad()
+    optimizer.zero_grad()
     return resultTuple
 
 # Function called for backprop. Arguments are archived list of actions
-# queuedActions is an array of (grid, action-letter, action-state prob, state value, node)
+# queuedActions is an array of (action-state probs, state value, node)
 def policyUpdate(actions):
     # Again, run the neural network, this is lazy coding
     # We back prop this time.
     for v in actions:
-        inVect = torch.from_numpy(v[0].flatten())
+        inVect = torch.from_numpy(v[2].game.grid.flatten())
 
         # Get the batch shape
         inVect = inVect.unsqueeze(0)
         results = NN.foward(Variable(inVect).float())
         
-        # Make a result copy
+        # Prepare training.
         resultsCopy = torch.FloatTensor([0,0,0,0,0])
-        resultsCopy = results.data.clone()
+        # If probs does not have value, should be zero
 
         # Normalize the action-state probs
-        node = v[-1]
-        currentProbs = {}
-        for c in node.children:
-            currentProbs[DIR_VAL[c.option]] = c.total_wins / node.total_games
-        
-        for key, value in currentProbs.items():
-            resultsCopy[0, DIR_KEY[key]] = value
-
+        probs = v[0]
+        for key,val in probs.items():
+            resultsCopy[key] = val
+            
         # copy down whatever we have for the state value
-        resultsCopy[0, 4] = v[3]
-        print(resultsCopy)
-        exit(0)
+        resultsCopy[4] = v[1]
 
-        loss = criterion(results, )
+        loss = criterion(results, Variable(resultsCopy))
+        loss.backward()
+        optimizer.step()
+
 
 
 
@@ -101,7 +100,7 @@ def main():
     print(tfe.grid)
     print("")
 
-    mct = MCTZero(tfe, MONTE_CARLO_RUN)
+    mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
     while (not tfe.isWin()) and (not tfe.isLose()):
 
         start = time.clock() 
