@@ -18,5 +18,5 @@ def convertBoardToNet(board):
 		for j in range(width):
 			if grid[i, j] != 0:
 				tensorNP[0, 0, i, j, np.round(np.log2(grid[i, j]) - 1).astype(int)] = 1
-				tensorNP[0, 0, i, j, :] = 1
+				tensorNP[0, 1, i, j, :] = 1
 	return Variable(torch.from_numpy(tensorNP).type(torch.FloatTensor), requires_grad=False)
