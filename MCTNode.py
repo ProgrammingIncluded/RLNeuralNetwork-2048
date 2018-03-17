@@ -50,17 +50,17 @@ class MCTNode:
             # We need to decode our options
             valOpt = opt // (boardSize)
             loc = opt - valOpt * boardSize
-            
+
             # Get value to place at position
             val = 2
             if valOpt == 1:
                 val = 4
-            
+
             # Place the actual value
             bw = self.game.board_width
             copyGame.putNewAt(loc // bw, int(loc % bw), val)
             res = MCTNode(self, copyGame, opt, not self.isPlayerDecision)
-            
+
         self.children.append(res)
         return res
 
@@ -68,9 +68,12 @@ class MCTNode:
     def randGenChild(self):
         if self.allChildrenGenerated():
             return False
-        
+
         # Randomly pick an option
         randOptionIndex = random.randint(0, len(self.childrenOptions)-1)
+        if len(self.childrenOptions)==4 and len(self.guessProbs)==4:
+            randOptionProbabilities = np.array([self.guessProbs[i] for i in range(4)])
+            randOptionIndex = np.random.choice(4,p = randOptionProbabilities)
         randOption = self.childrenOptions[randOptionIndex]
         del self.childrenOptions[randOptionIndex]
         return self.genChild(randOption)
@@ -104,7 +107,7 @@ class MCTNode:
             probTwo = 9/(10 * posSize)
             # Probability of getting a Four
             probFour = 1/(10 * posSize)
-            
+
             probsTwoDict = {(y[0]): probTwo for y in zeroPos}
             probsFourDict = {(1 * boardSize + y[0]): probFour for y in zeroPos}
             self.stateActProbs = {**probsTwoDict, **probsFourDict}
