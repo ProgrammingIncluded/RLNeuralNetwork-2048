@@ -10,7 +10,7 @@ import random as rnd
 
 # Game Settings
 # Probability of 4 appearing
-FOUR_PROB = 10
+FOUR_PROB = 4
 MAX_VALUE = 2048
 BOARD_WIDTH = 4
 
@@ -32,7 +32,7 @@ class TFE:
         zero = np.argwhere(grid == 0)
         if zero.size == 0:
             return False
-        
+
         sel = rnd.randint(0, zero.shape[0] - 1)
         selK = zero[sel, :]
         grid[selK[0], selK[1]] =  2 if rnd.randint(0, 100) > 10 else 4
@@ -42,7 +42,7 @@ class TFE:
     def moveCell(self, x, y, dir):
         grid = self.grid
         if grid[y, x] == 0:
-            return 
+            return
         # check boundary case
         if x <= 0 and dir == "l":
             return
@@ -124,7 +124,7 @@ class TFE:
                 self.moveCell(dx, dy, dir)
                 dx, dy = incI(dx, dy)
             dx, dy = incO(dx, dy)
-                
+
     def restart(self):
         grid = np.zeros((BOARD_WIDTH,BOARD_WIDTH))
 
@@ -142,7 +142,7 @@ class TFE:
         # check if empyt
         if self.grid.max() == 0:
             return {k: np.copy(self.grid) for k in choice}
-    
+
         result = {}
         gridDup = np.copy(self.grid)
         for c in choice:
