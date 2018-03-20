@@ -15,12 +15,12 @@ from mct_config import DIR_VAL
 gamma = 0.99
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
 MODEL_PATH = 'model/model_saved'
-LOAD_MODEL = False
+LOAD_MODEL = False #prev epochs 5000
 OUTPUT_PATH = 'output.txt'
 
 
 def one_hot(board):
-    grid = np.zeros((4, 4, 10))
+    grid = np.zeros((4, 4, 12))
     for i, row in enumerate(board):
         for j, tile in enumerate(row):
             grid[i, j, tile] = 1
@@ -30,7 +30,7 @@ def one_hot(board):
 class Policy(nn.Module):
     def __init__(self):
         super(Policy, self).__init__()
-        self.linear1 = nn.Linear(4*4*10, 128)
+        self.linear1 = nn.Linear(4*4*12, 128)
         self.linear2 = nn.Linear(128, 128)
         self.linear3 = nn.Linear(128, 128)
         self.linear4 = nn.Linear(128, 128)
@@ -185,7 +185,12 @@ class Simulator:
 
 def main():
 
+    #statistics
     f = open(OUTPUT_PATH,'w')
+    sum_tile = []
+    max_tile = []
+    num_moves = []
+    EPOCH_TIL_LOG = 100
 
     # create a new 4x4 board and two numbers
     sim = Simulator(4)
@@ -198,12 +203,20 @@ def main():
         while not sim.done():
             sim.step()
         print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions), np.sum(sim.tfe.grid))
-        print(i_episode, sim.tfe.isWin(), sim.tfe.grid.max(), len(sim.model.saved_actions), np.sum(sim.tfe.grid), file=f)
-        f.flush()
+        sum_tile.append(np.sum(sim.tfe.grid))
+        max_tile.append(sim.tfe.grid.max())
+        num_moves.append(len(sim.model.saved_actions))
+
         sim.finish_episode()
 
-        if i_episode % 100 == 0:
+        if i_episode % EPOCH_TIL_LOG == 0:
             torch.save(sim.model.state_dict(), MODEL_PATH)
+            avg_sum = sum(sum_tile[-1*EPOCH_TIL_LOG:])/EPOCH_TIL_LOG
+            avg_max = sum(max_tile[-1*EPOCH_TIL_LOG:])/EPOCH_TIL_LOG
+            avg_moves = sum(num_moves[-1*EPOCH_TIL_LOG:])/EPOCH_TIL_LOG
+            print('avg',avg_sum)
+            print(i_episode,avg_max, avg_moves, avg_sum,file=f)
+            f.flush()
 
     f.close()
 
