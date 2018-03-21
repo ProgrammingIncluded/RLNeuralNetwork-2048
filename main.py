@@ -100,14 +100,19 @@ def main():
     print(tfe.grid)
     print("")
 
-    mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
+    # mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
+    mct = MCTEZ(MONTE_CARLO_RUN)
     while (not tfe.isWin()) and (not tfe.isLose()):
 
         start = time.clock() 
 
         print("*********************")
 
-        act = mct.playerDecision()
+        # For the MCTZero
+        # act = mct.playerDecision()
+
+        # For MCTEZ
+        act = mct.playerDecision(tfe)
 
 
         print("AI SELECT ACTION: " + str(act))
@@ -123,8 +128,12 @@ def main():
         tfe.moveGrid(act)
 
         # generate a new
-        advDecision = tfe.putNew()
-        mct.adversaryDecision(advDecision)
+        # advDecision = tfe.putNew()
+        # mct.adversaryDecision(advDecision)
+
+        # Try MCTEZ
+        tfe.putNew()
+        mct.adversaryDecision(tfe)
 
         print(tfe.grid)
         print("")

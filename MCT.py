@@ -6,10 +6,120 @@
 ############################################
 
 from MCTNode import *
+from mct_config import *
 import time
 import math
 import operator
 import numpy as np
+import random
+
+# Try a simpler MCT
+class MCTEZ:
+    def __init__(self, secondsPerMove):
+        # Number of seconds you can make per move.
+        self.secondsPerMove = secondsPerMove
+
+        # Tracking stats
+        self.gamesPlayed = 0
+        self.gamesWon = 0
+        self.probs = {}
+        self.expectedDir = {}
+        self.expected = 0
+        # Accumulated max values
+        self.accum = 0
+        
+
+    # Make a player move
+    def playerDecision(self, game):
+        self.curGameState = game
+        # Keep stats for root node.
+        self.gamesPlayed = 0
+        self.gamesWon = 0
+
+        self.expected = 0
+        self.accum = 0
+
+        # Keep states for action-state probs
+        wonDir = {k: 0 for k,v in DIR_KEY.items()}
+        accumDir = {k: 0 for k,v in DIR_KEY.items()}
+
+        # Our time loop
+        endTime = time.time() + self.secondsPerMove
+        availDir = self.curGameState.availDir()
+        while time.time() < endTime:
+            # Sample once from each game
+            # We want to first manually go down one level if possible
+            for dirc, val in availDir.items():
+                # Copy the game state
+                tempGame = self.curGameState.copy()
+
+                # Force down one path before we do full rollout
+                tempGame.moveGrid(dirc)
+
+                # Generate a grid
+                tempGame.putNew()
+
+                # Perform a full rollout now.
+                res, val = self.rolloutOnPlayerDecision(tempGame)
+                # Update accumulator
+                self.accum += val
+                accumDir[dirc] += val
+
+                # Increase stats if we won
+                if res == 1:
+                    self.gamesPlayed += 1
+                    wonDir[dirc] += 1
+
+                self.gamesPlayed += 1
+        
+        # Calculate the probabilities and stats
+        # TODO: Use these probs for training
+        self.probs = {k: v / self.gamesPlayed for k, v in wonDir.items()}
+        # Caculate the expected value for each child node
+        self.expectedDir = {k: v / self.gamesPlayed for k, v in accumDir.items()}
+        self.expected = self.accum / self.gamesPlayed
+
+        print(self.expectedDir)
+
+        # Return largest direction with highest prob
+        best = max(self.expectedDir.items(), key=operator.itemgetter(1))[0]
+
+        # If max is zero then everything is zero, we rather just random guess
+        if self.expectedDir[best] == 0:
+            return DIR_VAL[random.randint(0, 3)]
+        
+        return best
+
+    # Just pass in the game state
+    def adversaryDecision(self, game):
+        self.curGameState = game.copy()
+    
+    # Simulate a full roll-out game
+    # Assume game given is on player decision
+    # Returns 1 if game won, 0 otherwise, also returns max for the rollout
+    def rolloutOnPlayerDecision(self, game):
+        curState = game.copy()
+
+        availDir = curState.availDir()
+        won = curState.isWin()
+        lost = len(availDir) == 0
+        while not lost and not won:
+            dirc = random.choice(list(availDir.keys()))
+            
+            # Check to see if direction is proper
+            curState.moveGrid(dirc)
+            curState.putNew()
+
+            availDir = curState.availDir()
+            won = curState.isWin()
+            lost = len(availDir) == 0
+        
+        return (1 if won else 0, curState.grid.max())
+
+                
+
+
+
 
 # This monte carlo implementation assumes MCT is retained every move.
 class MCTZero:
