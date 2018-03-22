@@ -15,7 +15,7 @@ import random
 
 # Try a simpler MCT
 class MCTEZ:
-    def __init__(self, secondsPerMove):
+    def __init__(self, secondsPerMove, trainer):
         # Number of seconds you can make per move.
         self.secondsPerMove = secondsPerMove
 
@@ -27,6 +27,7 @@ class MCTEZ:
         self.expected = 0
         # Accumulated max values
         self.accum = 0
+        self.trainer = trainer
         
 
     # Make a player move
@@ -79,6 +80,9 @@ class MCTEZ:
         self.expectedDir = {k: v / self.gamesPlayed for k, v in accumDir.items()}
         self.expected = self.accum / self.gamesPlayed
 
+        # Pass it to the trainer
+        self.trainer([(self.expectedDir, self.expected, self.curGameState)])
+
         print(self.expectedDir)
 
         # Return largest direction with highest prob
@@ -103,7 +107,7 @@ class MCTEZ:
         availDir = curState.availDir()
         won = curState.isWin()
         lost = len(availDir) == 0
-        while not lost and not won:
+        while not lost:
             dirc = random.choice(list(availDir.keys()))
             
             # Check to see if direction is proper
@@ -114,11 +118,7 @@ class MCTEZ:
             won = curState.isWin()
             lost = len(availDir) == 0
         
-        return (1 if won else 0, curState.grid.max())
-
-                
-
-
+        return (1 if won else 0, curState.grid.sum())
 
 
 # This monte carlo implementation assumes MCT is retained every move.

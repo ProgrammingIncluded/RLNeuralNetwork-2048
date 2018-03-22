@@ -11,7 +11,7 @@ import sys
 
 # System arguments.
 if len(sys.argv) >= 2:
-    MONTE_CARLO_RUN = int(sys.argv[1])
+    MONTE_CARLO_RUN = float(sys.argv[1])
 else:
     MONTE_CARLO_RUN = 0
 

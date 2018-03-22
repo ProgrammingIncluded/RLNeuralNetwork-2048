@@ -32,7 +32,6 @@ optimizer = torch.optim.SGD(NN.parameters(), lr=0.01)
 # UCB should be in dictionary form where
 # keys are shown in DIR_KEY within mct_config
 
-
 def genValueFunction(grid):
     # Convert numpy grid to input for NN.
     inVect = torch.from_numpy(grid.flatten())
@@ -86,74 +85,105 @@ def policyUpdate(actions):
         loss.backward()
         optimizer.step()
 
+# Trainer is a function designed specifically for MCTEZ
+# Passes in a list of tuples:
+# ()
+def trainer(values):
+    for v in values:
+        inVect = torch.from_numpy(v[2].grid.flatten())
 
+        # Get the batch shape
+        inVect = inVect.unsqueeze(0)
+        results = NN.foward(Variable(inVect).float())
+        
+        # Prepare training.
+        resultsCopy = torch.FloatTensor([0,0,0,0,0])
+        # If probs does not have value, should be zero
 
+        # Normalize the action-state probs
+        probs = v[0]
+        for key,val in probs.items():
+            resultsCopy[DIR_KEY[key]] = val
+            
+        # copy down whatever we have for the state value
+        resultsCopy[4] = v[1]
+
+        loss = criterion(results, Variable(resultsCopy))
+        print(results)
+        print(loss)
+        loss.backward()
+        optimizer.step()
 
 def main():
     board_width = BOARD_WIDTH
-    tfe = tfet.TFE(board_width)
-    # generate a new
-    tfe.putNew()
-    tfe.putNew()
-    print("STARTING BOARD: ")
-    # tfe.grid = np.array([0, 0, 2, 16, 0 ,0 , 64, 4, 0, 8, 16, 256, 2,4, 2, 16]).reshape((4,4))
-    print(tfe.grid)
-    print("")
-
-    # mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
-    mct = MCTEZ(MONTE_CARLO_RUN)
-    while (not tfe.isWin()) and (not tfe.isLose()):
-
-        start = time.clock() 
-
-        print("*********************")
-
-        # For the MCTZero
-        # act = mct.playerDecision()
-
-        # For MCTEZ
-        act = mct.playerDecision(tfe)
-
-
-        print("AI SELECT ACTION: " + str(act))
-        print("*********************")
-        print("BEFORE: ")
-        print(tfe.grid)
-        print("")
-
-        print("*********************")
-        print("AFTER: ")
-
-        # move grid
-        tfe.moveGrid(act)
-
+    for epochs in range(0, 10):
+        print("NUM EPOCHS:", epochs)
+        tfe = tfet.TFE(board_width)
         # generate a new
-        # advDecision = tfe.putNew()
-        # mct.adversaryDecision(advDecision)
-
-        # Try MCTEZ
         tfe.putNew()
-        mct.adversaryDecision(tfe)
-
+        tfe.putNew()
+        print("STARTING BOARD: ")
+        # tfe.grid = np.array([0, 0, 2, 16, 0 ,0 , 64, 4, 0, 8, 16, 256, 2,4, 2, 16]).reshape((4,4))
         print(tfe.grid)
         print("")
 
-        print("TIME TAKEN FOR STEP: " + str(time.clock() - start))
-        print("")
-        # Flush it
-        sys.stdout.flush()
-    
-    print("FINISHED: ")
-    print(tfe.grid)
-    print("")
+        # mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
+        mct = MCTEZ(MONTE_CARLO_RUN, trainer)
+        while (not tfe.isWin()) and (not tfe.isLose()):
 
-    print("IS WIN?: ")
-    print(tfe.isWin())
-    print("")
-    
-    print("IS LOSE?: ")
-    print(tfe.isLose())
-    print("")
+            start = time.clock() 
+
+            print("*********************")
+
+            # For the MCTZero
+            # act = mct.playerDecision()
+
+            # For MCTEZ
+            act = mct.playerDecision(tfe)
+
+
+            print("AI SELECT ACTION: " + str(act))
+            print("*********************")
+            print("BEFORE: ")
+            print(tfe.grid)
+            print("")
+
+            print("*********************")
+            print("AFTER: ")
+
+            # move grid
+            tfe.moveGrid(act)
+
+            # generate a new
+            # advDecision = tfe.putNew()
+            # mct.adversaryDecision(advDecision)
+
+            # Try MCTEZ
+            tfe.putNew()
+            mct.adversaryDecision(tfe)
+
+            print(tfe.grid)
+            print("")
+
+            print("TIME TAKEN FOR STEP: " + str(time.clock() - start))
+            print("")
+            # Flush it
+            sys.stdout.flush()
+        
+        print("FINISHED: ")
+        print(tfe.grid)
+        print("")
+
+        print("IS WIN?: ")
+        print(tfe.isWin())
+        print("")
+        
+        print("IS LOSE?: ")
+        print(tfe.isLose())
+        print("")
+
+        # Save the model
+        torch.save(NN, "model.torch")
 
 
 if __name__ == '__main__':
