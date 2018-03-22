@@ -43,7 +43,7 @@ class TFE:
         zero = np.argwhere(grid == 0)
         if zero.size == 0:
             return False
-        
+
         sel = rnd.randint(0, zero.shape[0] - 1)
         selK = zero[sel, :]
         val = 2 if rnd.randint(0, 100) > 10 else 4
@@ -54,7 +54,7 @@ class TFE:
     def moveCell(self, x, y, dir):
         grid = self.grid
         if grid[y, x] == 0:
-            return 
+            return
         # check boundary case
         if x <= 0 and dir == "l":
             return
@@ -136,7 +136,7 @@ class TFE:
                 self.moveCell(dx, dy, dir)
                 dx, dy = incI(dx, dy)
             dx, dy = incO(dx, dy)
-                
+
     def restart(self):
         grid = np.zeros((self.board_width,self.board_width))
 
@@ -154,7 +154,7 @@ class TFE:
         # check if empyt
         if self.grid.max() == 0:
             return {k: np.copy(self.grid) for k in choice}
-    
+
         result = {}
         gridDup = np.copy(self.grid)
         for c in choice:

@@ -15,9 +15,9 @@ class CNN(nn.Module):
         self.hidden2 = nn.Linear(inputDim, inputDim)
         self.hidden3 = nn.Linear(inputDim, inputDim)
         self.hidden4 = nn.Linear(inputDim, NUM_DIR + VALUE_STATE)
-        self.softmax = nn.Softmax(dim=0)
+        self.softmax = nn.Softmax(dim=1)
 
-    def foward(self, x):
+    def forward(self, x):
         x = self.hidden1(x)
         x = F.sigmoid(x)
 
@@ -29,7 +29,8 @@ class CNN(nn.Module):
 
         x = self.hidden4(x)
         x = F.sigmoid(x)
-        x_stateActionProbabilities = self.softmax(x[0,0:4])
-        x_stateValue = x[0,4]
-        x = torch.unsqueeze(torch.cat((x_stateActionProbabilities,x_stateValue),0),0)
+
+        x_stateActionProbabilities = self.softmax(x[:,0:4])
+        x_stateValue = torch.unsqueeze(x[:,4],1)
+        x = torch.cat((x_stateActionProbabilities,x_stateValue),1)
         return x

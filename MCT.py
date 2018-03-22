@@ -15,7 +15,7 @@ import random
 
 # Try a simpler MCT
 class MCTEZ:
-    def __init__(self, secondsPerMove, trainer):
+    def __init__(self, secondsPerMove, trainer, generateValue):
         # Number of seconds you can make per move.
         self.secondsPerMove = secondsPerMove
 
@@ -29,7 +29,8 @@ class MCTEZ:
         # Accumulated max values
         self.accum = 0
         self.trainer = trainer
-        
+        self.generateValue = generateValue
+
 
     # Make a player move
     def playerDecision(self, game):
@@ -73,7 +74,7 @@ class MCTEZ:
                     wonDir[dirc] += 1
 
                 self.gamesPlayed += 1
-        
+
         # Calculate the probabilities and stats
         # TODO: Use these probs for training
         self.probs = {k: v / self.gamesPlayed for k, v in wonDir.items()}
@@ -94,34 +95,39 @@ class MCTEZ:
         # If max is zero then everything is zero, we rather just random guess
         if self.expectedDir[best] == 0:
             return DIR_VAL[random.randint(0, 3)]
-        
+
         return best
 
     # Just pass in the game state
     def adversaryDecision(self, game):
         self.curGameState = game.copy()
-    
+
     # Simulate a full roll-out game
     # Assume game given is on player decision
     # Returns 1 if game won, 0 otherwise, also returns max for the rollout
     def rolloutOnPlayerDecision(self, game):
-        curState = game.copy()
+        currentState = game.copy()
 
-        availDir = curState.availDir()
-        won = curState.isWin()
+        availDir = currentState.availDir()
+        won = currentState.isWin()
         lost = len(availDir) == 0
         while not lost:
-            dirc = random.choice(list(availDir.keys()))
-            
-            # Check to see if direction is proper
-            curState.moveGrid(dirc)
-            curState.putNew()
+            stateActionProbabilities,stateValue = self.generateValue(currentState.grid)
+            legalDirections = list(availDir.keys())
+            legalMoves = [DIR_KEY[dir] for dir in legalDirections]
+            legalStateActionProbabilities = [stateActionProbabilities[move] for move in legalMoves]
+            legalStateActionProbabilities = legalStateActionProbabilities/sum(legalStateActionProbabilities)
+            dirc = np.random.choice(list(availDir.keys()),p=legalStateActionProbabilities)
 
-            availDir = curState.availDir()
-            won = curState.isWin()
+            # Check to see if direction is proper
+            currentState.moveGrid(dirc)
+            currentState.putNew()
+
+            availDir = currentState.availDir()
+            won = currentState.isWin()
             lost = len(availDir) == 0
-        
-        return (1 if won else 0, curState.grid.sum())
+
+        return (1 if won else 0, currentState.grid.sum())
 
 
 # This monte carlo implementation assumes MCT is retained every move.
@@ -134,7 +140,7 @@ class MCTZero:
         self.genValFunc = genValFunc
         self.policyUpdateFunc = policyUpdateFunc
         self.tracker = []
-    
+
     def adversaryDecision(self, decision):
         # Decode option number
         toggle =  0 if decision[1] == 2 else 1
@@ -151,7 +157,7 @@ class MCTZero:
                 if child.opt == opt:
                     res = child
             self.root = res
-    
+
         # reset the root
         self.root.parent = None
         self.root.opt = -1
@@ -196,10 +202,10 @@ class MCTZero:
                     actions.append((t.stateActProbs, t.wins / t.totalGames, t))
             # Call function to train NN
             self.policyUpdateFunc(actions)
-            # Reset trackers 
+            # Reset trackers
             self.tracker = []
-                
-        
+
+
         # Times up! Time to make a decision
         # Pick the one with the highest UCB
         ucbs = self.childrenUCB(self.root)
@@ -207,7 +213,7 @@ class MCTZero:
         if len(self.root.childrenOptions) != 0:
             print("MCTS not enough time")
             return act
-        
+
         # Before we leave, update new root
         self.root = self.root.children[np.argmax(ucbs)]
         seloption = self.root.opt
@@ -215,7 +221,7 @@ class MCTZero:
         # Reset
         self.root.parent = None
         self.opt = -1
-        
+
         # Convert int key into a letter
         return DIR_VAL[seloption]
 
@@ -236,7 +242,7 @@ class MCTZero:
         # Use heavy heuristics
         while not node.isLeaf():
             node = node.randGenChild()
-            
+
             self.tracker.append(node)
             # Estimate q
             node.guessProbs, node.guessQ = self.genValFunc(node.game.grid)
@@ -265,7 +271,7 @@ class MCTZero:
             ucb =  bias + 1.6 * math.log(node.totalGames / child.totalGames)
             childrenUCB.append(ucb)
         return childrenUCB
-    
+
     # Update the action-state probabilities assigned to each decision for a node
     # Only works on a node that is a player since that is the only action-state
     # that have different probability distributions
@@ -282,7 +288,7 @@ class MCTZero:
                 node.stateActProbs[child.opt] = prob
                 probAccum += prob
                 notUpdated.remove(child.opt)
-            
+
             if len(notUpdated) == 0:
                 return
 
