@@ -7,39 +7,59 @@ from CNNOHUtil import *
 TREE_STATE_PLAYER_BRANCH_COUNT = 4
 TREE_STATE_SYSTEM_BRANCH_COUNT = 4
 
-class MCTState:
-	def __init__(self, boardState, p):
-		self.boardState = boardState
-		self.p = p
-
 class MCMC:
 	def __init__(self, model):
 		self.model = model
+		self.T = 0
 	
-	def sampleFromMCT(self, initialBoardState, terminationTarget = 16, terminationThreshold = 10, p = 1.0):
-		self.winCnt = 0
-		self.gameCnt = 0
+	def sampleFromMCT(self, initialBoardState, terminationTarget = 16, terminationThreshold = 10):
 		self.outputs = []
 		self.targets = []
 		self.terminationTarget = terminationTarget
 		self.terminationThreshold = terminationThreshold
-		self.proceed(MCTState(initialBoardState, p))
+		self.proceed(initialBoardState))
 		return (torch.cat(self.outputs, 0), Variable(torch.LongTensor(self.targets)))
 	
-	def proceed(self, currentState, d = 0):
-		if currentState.boardState.isWin(self.terminationTarget):
-			self.winCnt += 1
-			self.gameCnt += 1
-			return 1
-#		print(d)
-#		print(currentState.boardState.grid)
-		if currentState.boardState.isLose() or d >= self.terminationThreshold:
-			self.gameCnt += 1
-			return 0
-		if np.random.rand() < currentState.p:
-			return self.proceedTreeState(currentState, d + 1)
-		else:
-			return self.proceedLinearState(currentState, d + 1)
+	def proceed(self, currentState):
+		if currentState.isLose():
+			return False
+		
+		moves = ['l', 'u', 'r', 'd']
+		#netState = convertBoardToNet(currentState)
+		#valueVariable = self.model(netState)
+		#valueNP = valueVariable.data.numpy()
+		valueNP = np.zeros((1,4))
+		availDirs = currentState.availDir()
+		for i, move in enumerate(moves):
+			if move not in availDirs:
+				valueNP[0,i] = 0
+			else:
+				for j in range(100):
+					valueNP[0,i] += self.sample(currentState)
+		i = np.argmax(valueNP)
+		currentState.moveGrid(moves[i])
+		currentState.putNew()
+		print(currentState)
+		return True
+	
+	def sample(self, startState):
+		currentState = startState.copy()
+		while not currentState.isLose():
+			moves = ['l', 'u', 'r', 'd']
+			netState = convertBoardToNet(currentState)
+			valueVariable = self.model(netState)
+			valueNP = valueVariable.data.numpy()
+			availDirs = currentState.availDir()
+			for i, move in enumerate(moves):
+				if move not in availDirs:
+					valueNP[0,i] = 0
+				else:
+					valueNP[0,i] += 0.25
+			valueNP /= np.sum(valueNP)
+			i = np.random.choice(4, valueNP)
+			currentState.moveGrid(moves[i])
+			currentState.putNew()
+		return currentState.score()
 	
 	def proceedTreeState(self, currentState, d):
 		moves = ['u', 'd', 'l', 'r']

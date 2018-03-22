@@ -53,35 +53,13 @@ holdout_target = torch.from_numpy(holdout_target).type(torch.LongTensor)
 train_sample_data = torch.from_numpy(train_sample_data).type(torch.FloatTensor)
 train_sample_target = torch.from_numpy(train_sample_target).type(torch.LongTensor)
 
-class BottleNeck(nn.Module):
-	def __init__(self, numChannel, submodule):
-		super(BottleNeck, self).__init__()
-		self.submodule = submodule
-		self.conv = nn.Conv1d(numChannel, numChannel, kernel_size=4, stride=2, padding=1)
-		self.bn = nn.BatchNorm1d(numChannel)
-		self.pool = nn.MaxPool1d(kernel_size=2)
-		
-	def forward(self, x):
-		return F.relu(self.pool(self.submodule(x)) + self.bn(self.conv(x)))
-
-class ResModule(nn.Module):
-	def __init__(self, numChannel):
-		super(ResModule, self).__init__()
-		self.conv1 = nn.Conv1d(numChannel, numChannel, kernel_size=3, padding=1, bias=False)
-		self.bn1 = nn.BatchNorm1d(numChannel)
-		self.conv2 = nn.Conv1d(numChannel, numChannel, kernel_size=3, padding=1, bias=False)
-		self.bn2 = nn.BatchNorm1d(numChannel)
-	
-	def forward(self, x):
-		return F.relu(x+self.bn2(self.conv2(F.relu(self.bn1(self.conv1(x))))))
-
 batch_size = 128
 
 # Data Loader (Input Pipeline)
 train_loader = torch.utils.data.DataLoader(dataset=torch.utils.data.TensorDataset(train_data, train_target), batch_size=batch_size, shuffle=True)
 
 """ResNet"""
-model = nn.Sequential(nn.Conv1d(65, 64, kernel_size=3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+model = nn.Sequential(nn.Conv1d(65, 64, kernel_size=3, padding=1), nn.ReLU(),
 					  BottleNeck(64, nn.Sequential(ResModule(64), ResModule(64), ResModule(64), ResModule(64), ResModule(64))),
 					  BottleNeck(64, nn.Sequential(ResModule(64), ResModule(64), ResModule(64), ResModule(64), ResModule(64))),
 					  Flatten(), nn.Linear(256, 32), nn.Tanh(), nn.Dropout(), nn.Linear(32, 4))
@@ -89,7 +67,7 @@ model = nn.Sequential(nn.Conv1d(65, 64, kernel_size=3, padding=1), nn.BatchNorm2
 model.cuda()
 
 loss_fn = nn.CrossEntropyLoss()
-learning_rate = 0.0001
+learning_rate = 0.00005
 
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -129,4 +107,4 @@ for epoch in range(50):
 	holdout_accuracy = correct / total
 	print("Holdout Accuracy =", 100 * holdout_accuracy)
 	print()
-	torch.save(model, timestamp)
+	torch.save(model, timestamp + "_round" + str(epoch))

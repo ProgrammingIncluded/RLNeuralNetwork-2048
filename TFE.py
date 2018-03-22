@@ -186,3 +186,11 @@ class TFE:
 				result[c] = self.grid
 			self.grid = np.copy(gridDup)
 		return result
+	
+	def score(self):
+		ret = 0
+		for i in range(4):
+			for j in range(4):
+				if self.grid[i, j] > 0:
+					ret += np.log2(self.grid[i, j]) * self.grid[i, j]
+		return ret
