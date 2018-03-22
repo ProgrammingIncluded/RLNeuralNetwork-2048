@@ -86,7 +86,19 @@ class MCTEZ:
         self.normExpectedDir = {k: v / self.expected for k, v in self.expectedDir.items()}
 
         # Pass it to the trainer
-        self.trainer([(self.normExpectedDir, self.curGameState.grid.sum() / self.expected, self.curGameState)])
+        stateActionProbabilities,stateValue = self.generateValue(self.curGameState.grid)
+        legalDirections = list(availDir.keys())
+        legalMoves = [DIR_KEY[dir] for dir in legalDirections]
+        legalStateActionProbabilities = [stateActionProbabilities[move] for move in legalMoves]
+        sumLegalStateActionProbabilities = sum(legalStateActionProbabilities)
+        targetStateActionProbabilities = {}
+        for key in DIR_KEY.keys():
+            if key in legalDirections:
+                targetStateActionProbabilities[key] = self.normExpectedDir[key]*sumLegalStateActionProbabilities
+            else:
+                targetStateActionProbabilities[key] = stateActionProbabilities[DIR_KEY[key]]
+
+        self.trainer([(targetStateActionProbabilities, self.curGameState.grid.sum() / self.expected, self.curGameState)])
         # self.trainer([(self.probs, self.gamesWon / self.gamesPlayed, self.curGameState)])
 
         # Return largest direction with highest prob
