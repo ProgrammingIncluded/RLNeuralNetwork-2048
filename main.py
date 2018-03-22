@@ -5,6 +5,7 @@
 # Website: ProgrammingIncluded.com
 ############################################
 
+import copy
 import TFE as tfet
 import mct_config as mctconfig
 from MCT import *
@@ -20,9 +21,9 @@ import torch
 
 # All the lovely neural network stuff goes here.
 BOARD_WIDTH = 4
-NN = cnn.CNN(BOARD_WIDTH * BOARD_WIDTH)
+NN = cnn.CNN(BOARD_WIDTH * BOARD_WIDTH * 12)
 criterion = nn.MSELoss()
-optimizer = torch.optim.SGD(NN.parameters(), lr=0.1)
+optimizer = torch.optim.Adam(NN.parameters(), lr=0.01)
 
 # Function to generate tuples of size two:
 # (
@@ -34,8 +35,13 @@ optimizer = torch.optim.SGD(NN.parameters(), lr=0.1)
 # keys are shown in DIR_KEY within mct_config
 
 def generateValue(grid):
+    NN.train(False)
     # Convert numpy grid to input for NN.
-    input = torch.from_numpy(grid.flatten())
+    logGrid = copy.deepcopy(grid.flatten())
+    logGrid[logGrid!=0] = np.log2(logGrid[logGrid!=0])
+    encoded_logGrid = np.zeros((logGrid.shape[0],12))
+    encoded_logGrid[np.arange(logGrid.shape[0]),logGrid] = 1
+    input = torch.from_numpy(encoded_logGrid.flatten())
 
     # Get the batch shape
     input = input.unsqueeze(0)
@@ -87,7 +93,11 @@ input_list = []
 target_list = []
 
 def trainer(values):
-    input_list.append(np.array(values[0][2].grid.flatten()))
+    input_state = np.array(values[0][2].grid.flatten())
+    input_state[input_state!=0] = np.log2(input_state[input_state!=0])
+    encoded_input_state = np.zeros((input_state.shape[0],12))
+    encoded_input_state[np.arange(input_state.shape[0]),input_state] = 1
+    input_list.append(encoded_input_state.flatten())
     target_list.append(np.append(list(values[0][0].values()),values[0][1]))
 
 def train():
@@ -119,7 +129,10 @@ def train():
 
     model = NN.cuda()
 
-    num_epochs = 1000
+    num_epochs = 20
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_loss = 1.0
+
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch+1, num_epochs))
         print('-' * 10)
@@ -153,6 +166,12 @@ def train():
 
             epoch_loss = running_loss / dataset_sizes[phase]
             print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, "n/a"))
+
+            if phase == 'val' and epoch_loss < best_loss:
+                best_loss = epoch_loss
+                best_model_wts = copy.deepcopy(model.state_dict())
+
+    model.load_state_dict(best_model_wts)
 
     model = NN.cpu()
     input_list[:] = []
@@ -194,9 +213,9 @@ def train():
 
 def main():
     board_width = BOARD_WIDTH
-    for epochs in range(0, 10):
+    for epochs in range(0, 100):
         print("NUM EPOCHS:", epochs)
-        for games in range(0,10):
+        for games in range(0,5):
             tfe = tfet.TFE(board_width)
             # generate a new
             tfe.putNew()

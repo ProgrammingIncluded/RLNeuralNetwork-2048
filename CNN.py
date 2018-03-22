@@ -28,9 +28,8 @@ class CNN(nn.Module):
         x = F.sigmoid(x)
 
         x = self.hidden4(x)
-        x = F.sigmoid(x)
 
         x_stateActionProbabilities = self.softmax(x[:,0:4])
-        x_stateValue = torch.unsqueeze(x[:,4],1)
+        x_stateValue = F.sigmoid(torch.unsqueeze(x[:,4],1))
         x = torch.cat((x_stateActionProbabilities,x_stateValue),1)
         return x
