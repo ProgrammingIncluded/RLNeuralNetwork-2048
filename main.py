@@ -25,8 +25,8 @@ optimizer = torch.optim.SGD(NN.parameters(), lr=0.01)
 
 # Function to generate tuples of size two:
 # (
-#    UCB to next state taking direction i, 
-#    current node value 
+#    UCB to next state taking direction i,
+#    current node value
 # )
 # Input is specified NxN play field.
 # UCB should be in dictionary form where
@@ -35,6 +35,7 @@ optimizer = torch.optim.SGD(NN.parameters(), lr=0.01)
 
 def genValueFunction(grid):
     # Convert numpy grid to input for NN.
+    # print(grid)
     inVect = torch.from_numpy(grid.flatten())
 
     # Get the batch shape
@@ -47,13 +48,10 @@ def genValueFunction(grid):
     # Reduce dimensions
     resultsVect = resultsVect[0, :]
     # Prepare for output
-    resultDict = {0: resultsVect[0], 1: resultsVect[1]}
-    # too lazy, just put it here
-    resultDict[2] = resultsVect[2]
-    resultDict[3] = resultsVect[3]
-
+    resultDict = {i:resultsVect[i] for i in range(4)}
     resultTuple = (resultDict, resultsVect[4])
-    
+    # print(resultTuple)
+    # time.sleep(0.2)
     NN.zero_grad()
     optimizer.zero_grad()
     return resultTuple
@@ -69,7 +67,7 @@ def policyUpdate(actions):
         # Get the batch shape
         inVect = inVect.unsqueeze(0)
         results = NN.foward(Variable(inVect).float())
-        
+
         # Prepare training.
         resultsCopy = torch.FloatTensor([0,0,0,0,0])
         # If probs does not have value, should be zero
@@ -78,7 +76,7 @@ def policyUpdate(actions):
         probs = v[0]
         for key,val in probs.items():
             resultsCopy[key] = val
-            
+
         # copy down whatever we have for the state value
         resultsCopy[4] = v[1]
 
@@ -100,40 +98,22 @@ def main():
     print(tfe.grid)
     print("")
 
+    MONTE_CARLO_RUN = 5
     mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
     while (not tfe.isWin()) and (not tfe.isLose()):
 
-        start = time.clock() 
-
         print("*********************")
-
         act = mct.playerDecision()
-
-
         print("AI SELECT ACTION: " + str(act))
-        print("*********************")
-        print("BEFORE: ")
-        print(tfe.grid)
-        print("")
-
-        print("*********************")
-        print("AFTER: ")
-
         # move grid
         tfe.moveGrid(act)
 
         # generate a new
         advDecision = tfe.putNew()
         mct.adversaryDecision(advDecision)
-
         print(tfe.grid)
         print("")
 
-        print("TIME TAKEN FOR STEP: " + str(time.clock() - start))
-        print("")
-        # Flush it
-        sys.stdout.flush()
-    
     print("FINISHED: ")
     print(tfe.grid)
     print("")
@@ -141,7 +121,7 @@ def main():
     print("IS WIN?: ")
     print(tfe.isWin())
     print("")
-    
+
     print("IS LOSE?: ")
     print(tfe.isLose())
     print("")

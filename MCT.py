@@ -21,7 +21,7 @@ class MCTZero:
         self.genValFunc = genValFunc
         self.policyUpdateFunc = policyUpdateFunc
         self.tracker = []
-    
+
     def adversaryDecision(self, decision):
         # Decode option number
         toggle =  0 if decision[1] == 2 else 1
@@ -38,7 +38,7 @@ class MCTZero:
                 if child.opt == opt:
                     res = child
             self.root = res
-    
+
         # reset the root
         self.root.parent = None
         self.root.opt = -1
@@ -83,18 +83,19 @@ class MCTZero:
                     actions.append((t.stateActProbs, t.wins / t.totalGames, t))
             # Call function to train NN
             self.policyUpdateFunc(actions)
-            # Reset trackers 
+            # Reset trackers
             self.tracker = []
-                
-        
+
+
         # Times up! Time to make a decision
         # Pick the one with the highest UCB
         ucbs = self.childrenUCB(self.root)
+        print(ucbs)
         act = 'u'
         if len(self.root.childrenOptions) != 0:
             print("MCTS not enough time")
             return act
-        
+
         # Before we leave, update new root
         self.root = self.root.children[np.argmax(ucbs)]
         seloption = self.root.opt
@@ -102,7 +103,7 @@ class MCTZero:
         # Reset
         self.root.parent = None
         self.opt = -1
-        
+
         # Convert int key into a letter
         return DIR_VAL[seloption]
 
@@ -123,7 +124,7 @@ class MCTZero:
         # Use heavy heuristics
         while not node.isLeaf():
             node = node.randGenChild()
-            
+
             self.tracker.append(node)
             # Estimate q
             node.guessProbs, node.guessQ = self.genValFunc(node.game.grid)
@@ -148,11 +149,12 @@ class MCTZero:
     def childrenUCB(self, node):
         childrenUCB = []
         for child in node.children:
+            # print("Child {} has won {}/{}".format(child,child.wins,child.totalGames))   
             bias = ((child.wins / child.totalGames) + child.guessQ) / 2
             ucb =  bias + 1.6 * math.log(node.totalGames / child.totalGames)
             childrenUCB.append(ucb)
         return childrenUCB
-    
+
     # Update the action-state probabilities assigned to each decision for a node
     # Only works on a node that is a player since that is the only action-state
     # that have different probability distributions
@@ -169,7 +171,7 @@ class MCTZero:
                 node.stateActProbs[child.opt] = prob
                 probAccum += prob
                 notUpdated.remove(child.opt)
-            
+
             if len(notUpdated) == 0:
                 return
 
