@@ -153,8 +153,10 @@ def train():
 
             epoch_loss = running_loss / dataset_sizes[phase]
             print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, "n/a"))
-            
+
     model = NN.cpu()
+    input_list[:] = []
+    target_list[:] = []
     #
     # for values in values_list:
     #     for v in values:
@@ -194,69 +196,70 @@ def main():
     board_width = BOARD_WIDTH
     for epochs in range(0, 10):
         print("NUM EPOCHS:", epochs)
-        tfe = tfet.TFE(board_width)
-        # generate a new
-        tfe.putNew()
-        tfe.putNew()
-        print("STARTING BOARD: ")
-        # tfe.grid = np.array([0, 0, 2, 16, 0 ,0 , 64, 4, 0, 8, 16, 256, 2,4, 2, 16]).reshape((4,4))
-        print(tfe.grid)
-        print("")
-
-        # mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
-        mct = MCTEZ(MONTE_CARLO_RUN, trainer, generateValue)
-        while (not tfe.isWin()) and (not tfe.isLose()):
-
-            start = time.clock()
-
-            print("*********************")
-
-            # For the MCTZero
-            # act = mct.playerDecision()
-
-            # For MCTEZ
-            act = mct.playerDecision(tfe)
-
-
-            print("AI SELECT ACTION: " + str(act))
-            print("*********************")
-            print("BEFORE: ")
-            print(tfe.grid)
-            print("")
-
-            print("*********************")
-            print("AFTER: ")
-
-            # move grid
-            tfe.moveGrid(act)
-
+        for games in range(0,10):
+            tfe = tfet.TFE(board_width)
             # generate a new
-            # advDecision = tfe.putNew()
-            # mct.adversaryDecision(advDecision)
-
-            # Try MCTEZ
             tfe.putNew()
-            mct.adversaryDecision(tfe)
-
+            tfe.putNew()
+            print("STARTING BOARD: ")
+            # tfe.grid = np.array([0, 0, 2, 16, 0 ,0 , 64, 4, 0, 8, 16, 256, 2,4, 2, 16]).reshape((4,4))
             print(tfe.grid)
             print("")
 
-            print("TIME TAKEN FOR STEP: " + str(time.clock() - start))
+            # mct = MCTZero(tfe, MONTE_CARLO_RUN, genValueFunction, policyUpdate)
+            mct = MCTEZ(MONTE_CARLO_RUN, trainer, generateValue)
+            while (not tfe.isWin()) and (not tfe.isLose()):
+
+                start = time.clock()
+
+                print("*********************")
+
+                # For the MCTZero
+                # act = mct.playerDecision()
+
+                # For MCTEZ
+                act = mct.playerDecision(tfe)
+
+
+                print("AI SELECT ACTION: " + str(act))
+                print("*********************")
+                print("BEFORE: ")
+                print(tfe.grid)
+                print("")
+
+                print("*********************")
+                print("AFTER: ")
+
+                # move grid
+                tfe.moveGrid(act)
+
+                # generate a new
+                # advDecision = tfe.putNew()
+                # mct.adversaryDecision(advDecision)
+
+                # Try MCTEZ
+                tfe.putNew()
+                mct.adversaryDecision(tfe)
+
+                print(tfe.grid)
+                print("")
+
+                print("TIME TAKEN FOR STEP: " + str(time.clock() - start))
+                print("")
+                # Flush it
+                sys.stdout.flush()
+
+            print("FINISHED: ")
+            print(tfe.grid)
             print("")
-            # Flush it
-            sys.stdout.flush()
 
-        print("FINISHED: ")
-        print(tfe.grid)
-        print("")
+            print("IS WIN?: ")
+            print(tfe.isWin())
+            print("")
 
-        print("IS WIN?: ")
-        print(tfe.isWin())
-        print("")
-
-        print("IS LOSE?: ")
-        print(tfe.isLose())
-        print("")
+            print("IS LOSE?: ")
+            print(tfe.isLose())
+            print("")
 
         train()
 
