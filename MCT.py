@@ -69,7 +69,7 @@ class MCTEZ:
 
                 # Increase stats if we won
                 if res == 1:
-                    self.gamesPlayed += 1
+                    self.gamesWon += 1
                     wonDir[dirc] += 1
 
                 self.gamesPlayed += 1
@@ -86,6 +86,7 @@ class MCTEZ:
 
         # Pass it to the trainer
         self.trainer([(self.normExpectedDir, self.curGameState.grid.sum() / self.expected, self.curGameState)])
+        # self.trainer([(self.probs, self.gamesWon / self.gamesPlayed, self.curGameState)])
 
         # Return largest direction with highest prob
         best = max(self.expectedDir.items(), key=operator.itemgetter(1))[0]
