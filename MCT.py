@@ -24,6 +24,7 @@ class MCTEZ:
         self.gamesWon = 0
         self.probs = {}
         self.expectedDir = {}
+        self.normExpectedDir = {}
         self.expected = 0
         # Accumulated max values
         self.accum = 0
@@ -80,10 +81,11 @@ class MCTEZ:
         self.expectedDir = {k: v / self.gamesPlayed for k, v in accumDir.items()}
         self.expected = self.accum / self.gamesPlayed
 
-        # Pass it to the trainer
-        self.trainer([(self.expectedDir, self.expected, self.curGameState)])
+        # Calculate normalized expected value
+        self.normExpectedDir = {k: v / self.expected for k, v in self.expectedDir.items()}
 
-        print(self.expectedDir)
+        # Pass it to the trainer
+        self.trainer([(self.normExpectedDir, self.curGameState.grid.sum() / self.expected, self.curGameState)])
 
         # Return largest direction with highest prob
         best = max(self.expectedDir.items(), key=operator.itemgetter(1))[0]

@@ -21,7 +21,7 @@ import torch
 BOARD_WIDTH = 4
 NN = cnn.CNN(BOARD_WIDTH * BOARD_WIDTH)
 criterion = nn.MSELoss()
-optimizer = torch.optim.SGD(NN.parameters(), lr=0.01)
+optimizer = torch.optim.SGD(NN.parameters(), lr=0.1)
 
 # Function to generate tuples of size two:
 # (
@@ -87,7 +87,7 @@ def policyUpdate(actions):
 
 # Trainer is a function designed specifically for MCTEZ
 # Passes in a list of tuples:
-# ()
+# (normalizedScoresPerDirection, gamesWon/gamesPlayed, grid)
 def trainer(values):
     for v in values:
         inVect = torch.from_numpy(v[2].grid.flatten())
@@ -109,7 +109,14 @@ def trainer(values):
         resultsCopy[4] = v[1]
 
         loss = criterion(results, Variable(resultsCopy))
+        print("PREDICTION: ")
         print(results)
+        print("\n")
+        print("ACTUAL: ")
+        print("State Action Val: ", v[0])
+        print("State Val: ", v[1])
+        print("\n")
+        print("LOSS: ")
         print(loss)
         loss.backward()
         optimizer.step()
