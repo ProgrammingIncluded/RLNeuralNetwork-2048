@@ -37,9 +37,10 @@ def trainOneRound(output, target):
 	loss.backward()
 	optimizer.step()
 
-def trainingWorkflow(nRound, threshold, p, goal, batch):
-	#model = loadModel('16model_latest.pt')
+def trainingWorkflow(nRound, batch):
+	model = loadModel('pretrained_best')
 	model.train(True)
+	#model.cpu()
 	mcmc = MCMC(model)
 	for i in range(nRound):
 		print('round', i)
@@ -51,7 +52,7 @@ def trainingWorkflow(nRound, threshold, p, goal, batch):
 			initBoard.putNew()
 			initBoard.putNew()
 	#		print('threshold', threshold)
-			output, target = mcmc.sampleFromMCT(initBoard, goal, threshold, p)
+			output, target = mcmc.sampleFromMCT(initBoard)
 			batch_output.append(output)
 			batch_target.append(target)
 		output = torch.cat(batch_output, 0)
@@ -59,7 +60,7 @@ def trainingWorkflow(nRound, threshold, p, goal, batch):
 		printTime()
 		#trainOneRound(output, target)
 		printTime()
-		saveModel(model, 'model' + genTimeStamp() + '.pt')
-		saveModel(model, '16model_latest.pt')
+		#saveModel(model, 'model' + genTimeStamp() + '.pt')
+		#saveModel(model, '16model_latest.pt')
 		print('')
-trainingWorkflow(100, 12, 1, 16, 20)
+trainingWorkflow(1, 1)

@@ -12,13 +12,13 @@ class MCMC:
 		self.model = model
 		self.T = 0
 	
-	def sampleFromMCT(self, initialBoardState, terminationTarget = 16, terminationThreshold = 10):
+	def sampleFromMCT(self, initialBoardState):
 		self.outputs = []
 		self.targets = []
-		self.terminationTarget = terminationTarget
-		self.terminationThreshold = terminationThreshold
-		self.proceed(initialBoardState))
-		return (torch.cat(self.outputs, 0), Variable(torch.LongTensor(self.targets)))
+		while self.proceed(initialBoardState):
+			pass
+		return ([], [])
+		#return (torch.cat(self.outputs, 0), Variable(torch.LongTensor(self.targets)))
 	
 	def proceed(self, currentState):
 		if currentState.isLose():
@@ -34,32 +34,48 @@ class MCMC:
 			if move not in availDirs:
 				valueNP[0,i] = 0
 			else:
-				for j in range(100):
-					valueNP[0,i] += self.sample(currentState)
+				valueNP[0,i] = self.sample(currentState, 20)
 		i = np.argmax(valueNP)
 		currentState.moveGrid(moves[i])
 		currentState.putNew()
-		print(currentState)
+		print(currentState.grid)
 		return True
 	
-	def sample(self, startState):
-		currentState = startState.copy()
-		while not currentState.isLose():
-			moves = ['l', 'u', 'r', 'd']
-			netState = convertBoardToNet(currentState)
-			valueVariable = self.model(netState)
-			valueNP = valueVariable.data.numpy()
-			availDirs = currentState.availDir()
-			for i, move in enumerate(moves):
-				if move not in availDirs:
-					valueNP[0,i] = 0
+	def sample(self, startState, size):
+		moves = ['l', 'u', 'r', 'd']
+		ret = 0;
+		currentStates = []
+		for i in range(size):
+			currentStates.append(startState.copy())
+		while len(currentStates) > 0:
+			netStates = []
+			nextStates = []
+			for currentState in currentStates:
+				netStates.append(convertBoardToNet(currentState))
+			netStates = torch.cat(netStates, 0).cuda()
+			valueVariable = self.model(netStates)
+			valueNPs = valueVariable.data.cpu().numpy()
+			for i, currentState in enumerate(currentStates):
+				valueNP = valueNPs[i]
+				availDirs = currentState.availDir()
+				valueNP = np.exp(valueNP)
+				valueNP /= np.sum(valueNP)
+				for i, move in enumerate(moves):
+					if move not in availDirs:
+						valueNP[i] = 0
+					else:
+						valueNP[i] += 0
+				valueNP /= np.sum(valueNP)
+				i = np.random.choice(4, p=valueNP)
+				currentState.moveGrid(moves[i])
+				currentState.putNew()
+				if currentState.isLose():
+					ret += currentState.score()
 				else:
-					valueNP[0,i] += 0.25
-			valueNP /= np.sum(valueNP)
-			i = np.random.choice(4, valueNP)
-			currentState.moveGrid(moves[i])
-			currentState.putNew()
-		return currentState.score()
+					nextStates.append(currentState)
+			currentStates = nextStates
+		print(ret)
+		return ret
 	
 	def proceedTreeState(self, currentState, d):
 		moves = ['u', 'd', 'l', 'r']
