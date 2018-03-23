@@ -11,7 +11,7 @@ import random as rnd
 # Game Settings
 # Probability of 4 appearing
 FOUR_PROB = 10
-MAX_VALUE = 512
+MAX_VALUE = 2048
 
 # cannot be changed for now
 MOV_OPT = ["d", "u", "l", "r"]

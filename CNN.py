@@ -15,18 +15,23 @@ class CNN(nn.Module):
         self.hidden2 = nn.Linear(inputDim, inputDim)
         self.hidden3 = nn.Linear(inputDim, inputDim)
         self.hidden4 = nn.Linear(inputDim, NUM_DIR + VALUE_STATE)
+        self.dropout = nn.Dropout(p=0.2)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
+        x = F.sigmoid(x)
         x = self.hidden1(x)
-        x = F.sigmoid(x)
+        x = self.dropout(x)
 
+        x = F.sigmoid(x)
         x = self.hidden2(x)
-        x = F.sigmoid(x)
+        x = self.dropout(x)
 
+        x = F.sigmoid(x)
         x = self.hidden3(x)
-        x = F.sigmoid(x)
+        x = self.dropout(x)
 
+        x = F.sigmoid(x)
         x = self.hidden4(x)
 
         x_stateActionProbabilities = self.softmax(x[:,0:4])

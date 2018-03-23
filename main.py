@@ -127,11 +127,12 @@ def train():
     dataloaders['train'] = DataLoader(dataset_train,batch_size=32,shuffle=True)
     dataloaders['val'] = DataLoader(dataset_val,batch_size=32,shuffle=True)
 
-    model = NN.cuda()
+    model = NN
 
     num_epochs = 20
     best_model_wts = copy.deepcopy(model.state_dict())
     best_loss = 1.0
+    outputs = None
 
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch+1, num_epochs))
@@ -171,6 +172,7 @@ def train():
                 best_loss = epoch_loss
                 best_model_wts = copy.deepcopy(model.state_dict())
 
+    print(outputs)
     model.load_state_dict(best_model_wts)
 
     model = NN.cpu()
